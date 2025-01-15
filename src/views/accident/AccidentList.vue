@@ -597,20 +597,6 @@ const handleSubmit = () => {
   }
   dialogVisible.value = false;
 };
-
-// 处理附件上传
-const handleUpload = (file: File) => {
-  // 实际项目中这里会调用上传API
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    accidentForm.attachments.push({
-      name: file.name,
-      url: e.target?.result,
-      type: file.type
-    });
-  };
-  reader.readAsDataURL(file);
-};
 </script>
 
 <style scoped>

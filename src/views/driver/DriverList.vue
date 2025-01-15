@@ -77,18 +77,20 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Driver } from '@/types/vehicle';
+import type { Driver, DriverForm, DriverStatus } from '@/types/driver';
 import driverData from '@/mock/driver';
+
+const currentId = ref<string>('');
 
 const drivers = ref<Driver[]>([]);
 const dialogVisible = ref(false);
 const dialogType = ref<'add' | 'edit'>('add');
-const driverForm = reactive({
+const driverForm = ref<DriverForm>({
   name: '',
   licenseNumber: '',
   phoneNumber: '',
   licenseExpireDate: '',
-  drivingYears: 3,
+  drivingYears: 0,
   status: 'available'
 });
 
@@ -113,20 +115,20 @@ const getStatusText = (status: string) => {
 const handleAdd = () => {
   dialogType.value = 'add';
   dialogVisible.value = true;
-  Object.assign(driverForm, {
+  Object.assign(driverForm.value, {
     name: '',
     licenseNumber: '',
     phoneNumber: '',
     licenseExpireDate: '',
-    drivingYears: 3,
+    drivingYears: 0,
     status: 'available'
   });
 };
 
-const handleEdit = (row: Driver) => {
-  dialogType.value = 'edit';
+const handleEdit = (driver: Driver) => {
+  currentId.value = driver.id;
+  Object.assign(driverForm.value, driver);
   dialogVisible.value = true;
-  Object.assign(driverForm, row);
 };
 
 const handleDelete = (row: Driver) => {
@@ -140,19 +142,23 @@ const handleViewRecord = (row: Driver) => {
 
 const handleSubmit = () => {
   if (dialogType.value === 'add') {
-    const newDriver = {
-      ...driverForm,
-      id: String(drivers.value.length + 1)
+    const newDriver: Driver = {
+      id: String(Date.now()),
+      ...driverForm.value
     };
-    drivers.value.push(newDriver);
+    drivers.value.unshift(newDriver);
+    ElMessage.success('新增驾驶员成功');
   } else {
-    const index = drivers.value.findIndex(item => item.id === driverForm.id);
+    const index = drivers.value.findIndex(item => item.id === currentId.value);
     if (index !== -1) {
-      drivers.value[index] = { ...driverForm };
+      drivers.value[index] = {
+        ...drivers.value[index],
+        ...driverForm.value
+      };
+      ElMessage.success('更新驾驶员信息成功');
     }
   }
   dialogVisible.value = false;
-  ElMessage.success(dialogType.value === 'add' ? '添加成功' : '更新成功');
 };
 
 // 初始化数据

@@ -67,12 +67,12 @@ const handleAdd = () => {
   // 实现新增逻辑
 };
 
-const handleEdit = (row: Vehicle) => {
-  // 实现编辑逻辑
+const handleEdit = (vehicle: Vehicle) => {
+  // 函数实现
 };
 
-const handleDelete = (row: Vehicle) => {
-  // 实现删除逻辑
+const handleDelete = (vehicle: Vehicle) => {
+  // 函数实现
 };
 </script>
 
