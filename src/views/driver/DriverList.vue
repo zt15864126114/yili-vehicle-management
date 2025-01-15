@@ -25,13 +25,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="250">
-          <template #default="{ row }">
-            <el-button-group>
-              <el-button type="primary" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="success" @click="handleViewRecord(row)">行驶记录</el-button>
-              <el-button type="danger" @click="handleDelete(row)">删除</el-button>
-            </el-button-group>
+        <el-table-column label="操作" width="200">
+          <template #default="{ row: driver }">
+            <el-button type="primary" link @click="handleView(driver)">查看</el-button>
+            <el-button type="primary" link @click="handleEdit(driver)">编辑</el-button>
+            <el-button type="danger" link @click="handleDelete(driver)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -136,8 +134,9 @@ const handleDelete = (row: Driver) => {
   drivers.value = drivers.value.filter(item => item.id !== row.id);
 };
 
-const handleViewRecord = (row: Driver) => {
-  // 查看驾驶记录的实现
+const handleView = (driver: Driver) => {
+  // 实现查看功能
+  console.log('查看驾驶员:', driver);
 };
 
 const handleSubmit = () => {
@@ -159,11 +158,6 @@ const handleSubmit = () => {
     }
   }
   dialogVisible.value = false;
-};
-
-const handleView = (driver: Driver) => {
-  // 实现查看功能
-  console.log('查看驾驶员:', driver);
 };
 
 // 初始化数据

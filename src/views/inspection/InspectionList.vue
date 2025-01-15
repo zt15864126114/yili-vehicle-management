@@ -95,12 +95,11 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button-group>
-              <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="success" size="small" @click="handleViewReport(row)">查看报告</el-button>
-              <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-            </el-button-group>
+          <template #default="{ row: record }">
+            <el-button type="primary" link @click="handleView(record)">查看</el-button>
+            <el-button type="primary" link @click="handleEdit(record)">编辑</el-button>
+            <el-button type="danger" link @click="handleDelete(record)">删除</el-button>
+            <el-button type="info" link @click="handleViewReport(record)">查看报告</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -356,8 +355,9 @@ const handleDelete = (row: any) => {
 };
 
 // 查看报告
-const handleViewReport = (row: any) => {
-  ElMessage.info('查看报告功能开发中...');
+const handleViewReport = (record: any) => {
+  console.log('查看年检报告:', record);
+  ElMessage.info('年检报告功能开发中...');
 };
 
 // 从提醒创建年检记录
