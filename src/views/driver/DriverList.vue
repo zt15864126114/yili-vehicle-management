@@ -75,9 +75,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
+import { ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import type { Driver, DriverForm, DriverStatus } from '@/types/driver';
+import type { Driver, DriverForm } from '@/types/driver';
 import driverData from '@/mock/driver';
 
 const currentId = ref<string>('');
@@ -159,6 +159,11 @@ const handleSubmit = () => {
     }
   }
   dialogVisible.value = false;
+};
+
+const handleView = (driver: Driver) => {
+  // 实现查看功能
+  console.log('查看驾驶员:', driver);
 };
 
 // 初始化数据

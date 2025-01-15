@@ -384,6 +384,12 @@ const handleSubmit = () => {
   }
   dialogVisible.value = false;
 };
+
+// 修改函数定义，删除未使用的 row 参数
+const handleView = (record: any) => {
+  // 实现查看功能
+  console.log('查看记录:', record);
+};
 </script>
 
 <style scoped>
