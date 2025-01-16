@@ -117,7 +117,6 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue';
 import systemConfigData from '@/mock/systemConfig';
 
 const activeTab = ref('company');
