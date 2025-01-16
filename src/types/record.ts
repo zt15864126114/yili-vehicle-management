@@ -1,13 +1,16 @@
 export interface TripRecord {
   id: string;
   vehicleId: string;
+  vehicleNumber: string;
   driverId: string;
-  startTime: string;
-  endTime: string;
-  destination: string;
-  purpose: string;
+  driverName: string;
+  departureTime: string;
+  returnTime: string;
   mileage: number;
+  route: string;
+  purpose: string;
   status: 'ongoing' | 'completed' | 'cancelled';
+  remarks: string;
 }
 
 export interface MaintenanceRecord {

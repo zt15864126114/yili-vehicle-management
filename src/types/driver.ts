@@ -9,6 +9,7 @@ export interface Driver {
   phoneNumber: string;
   status: DriverStatus;
   drivingYears?: number;
+  remarks?: string;
 }
 
 export interface DriverForm {

@@ -1,42 +1,26 @@
 <template>
   <div class="accident-list">
-    <el-card>
+    <el-card class="accident-card">
       <template #header>
         <div class="card-header">
-          <span>事故记录管理</span>
-          <el-button type="primary" @click="handleAdd">新增事故记录</el-button>
+          <span>事故记录</span>
+          <el-button type="primary" @click="handleAdd">新增记录</el-button>
         </div>
       </template>
 
       <!-- 搜索表单 -->
-      <el-form :inline="true" class="search-form">
-        <el-form-item label="车辆">
-          <el-select v-model="searchForm.vehicleId" placeholder="请选择车辆" clearable>
-            <el-option
-              v-for="vehicle in vehicles"
-              :key="vehicle.id"
-              :label="vehicle.plateNumber"
-              :value="vehicle.id"
-            />
-          </el-select>
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="车牌号">
+          <el-input v-model="searchForm.vehicleNumber" placeholder="请输入车牌号" />
         </el-form-item>
         <el-form-item label="驾驶员">
-          <el-select v-model="searchForm.driverId" placeholder="请选择驾驶员" clearable>
-            <el-option
-              v-for="driver in drivers"
-              :key="driver.id"
-              :label="driver.name"
-              :value="driver.id"
-            />
-          </el-select>
+          <el-input v-model="searchForm.driverName" placeholder="请输入驾驶员姓名" />
         </el-form-item>
-        <el-form-item label="事故类型">
-          <el-select v-model="searchForm.type" placeholder="请选择类型" clearable>
-            <el-option label="碰撞" value="碰撞" />
-            <el-option label="刮蹭" value="刮蹭" />
-            <el-option label="追尾" value="追尾" />
-            <el-option label="翻车" value="翻车" />
-            <el-option label="其他" value="其他" />
+        <el-form-item label="事故等级">
+          <el-select v-model="searchForm.level" placeholder="请选择等级" clearable>
+            <el-option label="轻微" value="minor" />
+            <el-option label="一般" value="normal" />
+            <el-option label="重大" value="major" />
           </el-select>
         </el-form-item>
         <el-form-item label="处理状态">
@@ -53,219 +37,199 @@
             range-separator="至"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 数据表格 -->
-      <el-table :data="filteredRecords" border>
-        <el-table-column prop="id" label="记录编号" width="100" />
-        <el-table-column label="车牌号" width="120">
-          <template #default="{ row }">
-            {{ getVehiclePlateNumber(row.vehicleId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="驾驶员" width="100">
-          <template #default="{ row }">
-            {{ getDriverName(row.driverId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="accidentDate" label="事故时间" width="160" />
-        <el-table-column prop="location" label="事故地点" width="120" />
-        <el-table-column prop="type" label="事故类型" width="100" />
-        <el-table-column prop="severity" label="严重程度" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getSeverityType(row.severity)">
-              {{ getSeverityText(row.severity) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="responsibility" label="责任认定" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getResponsibilityType(row.responsibility)">
-              {{ row.responsibility }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="总费用" width="120">
-          <template #default="{ row }">
-            ¥{{ getTotalCost(row).toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="处理状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="保险理赔" width="180">
-          <template #default="{ row }">
-            <div>{{ row.insuranceClaim.claimNumber }}</div>
-            <el-tag size="small" :type="getClaimStatusType(row.insuranceClaim.status)">
-              {{ row.insuranceClaim.status }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button-group>
-              <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="success" size="small" @click="handleViewDetail(row)">详情</el-button>
-              <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-            </el-button-group>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 表格内容区域 -->
+      <div class="table-container">
+        <el-table 
+          :data="paginatedRecords" 
+          style="width: 100%"
+          :height="tableHeight"
+        >
+          <el-table-column prop="vehicleNumber" label="车牌号" width="120" />
+          <el-table-column prop="driverName" label="驾驶员" width="100" />
+          <el-table-column prop="accidentTime" label="事故时间" width="160" />
+          <el-table-column prop="location" label="事故地点" min-width="180" />
+          <el-table-column prop="level" label="事故等级" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getLevelType(row.level)">
+                {{ levelMap[row.level as keyof typeof levelMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="处理状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)">
+                {{ statusMap[row.status as keyof typeof statusMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="cost" label="损失金额" width="120">
+            <template #default="{ row }">
+              ¥{{ row.cost.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="responsibility" label="责任认定" width="120">
+            <template #default="{ row }">
+              <el-tag :type="getResponsibilityType(row.responsibility)">
+                {{ responsibilityMap[row.responsibility as keyof typeof responsibilityMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="handleView(row)">查看</el-button>
+              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 分页区域 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 30]"
+          :total="filteredRecords.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
     <el-dialog
-      v-model="dialogVisible"
       :title="dialogType === 'add' ? '新增事故记录' : '编辑事故记录'"
-      width="800px"
+      v-model="dialogVisible"
+      width="600px"
     >
-      <el-form :model="accidentForm" label-width="100px">
-        <el-tabs v-model="activeTab">
-          <el-tab-pane label="基本信息" name="basic">
-            <el-form-item label="车辆">
-              <el-select v-model="accidentForm.vehicleId" placeholder="请选择车辆">
-                <el-option
-                  v-for="vehicle in vehicles"
-                  :key="vehicle.id"
-                  :label="vehicle.plateNumber"
-                  :value="vehicle.id"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="驾驶员">
-              <el-select v-model="accidentForm.driverId" placeholder="请选择驾驶员">
-                <el-option
-                  v-for="driver in drivers"
-                  :key="driver.id"
-                  :label="driver.name"
-                  :value="driver.id"
-                />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="事故时间">
-              <el-date-picker
-                v-model="accidentForm.accidentDate"
-                type="datetime"
-                placeholder="选择时间"
-              />
-            </el-form-item>
-            <el-form-item label="事故地点">
-              <el-input v-model="accidentForm.location" />
-            </el-form-item>
-            <el-form-item label="事故类型">
-              <el-select v-model="accidentForm.type" placeholder="请选择类型">
-                <el-option label="碰撞" value="碰撞" />
-                <el-option label="刮蹭" value="刮蹭" />
-                <el-option label="追尾" value="追尾" />
-                <el-option label="翻车" value="翻车" />
-                <el-option label="其他" value="其他" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="严重程度">
-              <el-select v-model="accidentForm.severity" placeholder="请选择严重程度">
-                <el-option label="轻微" value="minor" />
-                <el-option label="中等" value="moderate" />
-                <el-option label="严重" value="severe" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="责任认定">
-              <el-select v-model="accidentForm.responsibility" placeholder="请选择责任">
-                <el-option label="全责" value="全责" />
-                <el-option label="主责" value="主责" />
-                <el-option label="次责" value="次责" />
-                <el-option label="无责" value="无责" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="事故描述">
-              <el-input
-                v-model="accidentForm.description"
-                type="textarea"
-                :rows="3"
-              />
-            </el-form-item>
-          </el-tab-pane>
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-width="100px"
+        style="max-height: 60vh; overflow-y: auto;"
+      >
+        <el-form-item label="车辆" prop="vehicleId">
+          <el-select
+            v-model="formData.vehicleId"
+            placeholder="请选择车辆"
+            style="width: 100%"
+            @change="handleVehicleChange"
+          >
+            <el-option
+              v-for="vehicle in availableVehicles"
+              :key="vehicle.id"
+              :label="vehicle.plateNumber"
+              :value="vehicle.id"
+            />
+          </el-select>
+        </el-form-item>
 
-          <el-tab-pane label="第三方信息" name="thirdParty">
-            <el-form-item label="姓名">
-              <el-input v-model="accidentForm.thirdParty.name" />
-            </el-form-item>
-            <el-form-item label="联系电话">
-              <el-input v-model="accidentForm.thirdParty.phone" />
-            </el-form-item>
-            <el-form-item label="车牌号">
-              <el-input v-model="accidentForm.thirdParty.plateNumber" />
-            </el-form-item>
-          </el-tab-pane>
+        <el-form-item label="驾驶员" prop="driverId">
+          <el-select
+            v-model="formData.driverId"
+            placeholder="请选择驾驶员"
+            style="width: 100%"
+            @change="handleDriverChange"
+          >
+            <el-option
+              v-for="driver in availableDrivers"
+              :key="driver.id"
+              :label="driver.name"
+              :value="driver.id"
+            />
+          </el-select>
+        </el-form-item>
 
-          <el-tab-pane label="费用信息" name="cost">
-            <el-form-item label="维修费用">
-              <el-input-number
-                v-model="accidentForm.cost.repair"
-                :min="0"
-                :precision="2"
-                :step="100"
-              />
-            </el-form-item>
-            <el-form-item label="赔偿费用">
-              <el-input-number
-                v-model="accidentForm.cost.compensation"
-                :min="0"
-                :precision="2"
-                :step="100"
-              />
-            </el-form-item>
-            <el-form-item label="其他费用">
-              <el-input-number
-                v-model="accidentForm.cost.other"
-                :min="0"
-                :precision="2"
-                :step="100"
-              />
-            </el-form-item>
-          </el-tab-pane>
+        <el-form-item label="事故时间" prop="accidentTime">
+          <el-date-picker
+            v-model="formData.accidentTime"
+            type="datetime"
+            placeholder="选择事故时间"
+            style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm"
+          />
+        </el-form-item>
 
-          <el-tab-pane label="保险理赔" name="insurance">
-            <el-form-item label="理赔编号">
-              <el-input v-model="accidentForm.insuranceClaim.claimNumber" />
-            </el-form-item>
-            <el-form-item label="理赔金额">
-              <el-input-number
-                v-model="accidentForm.insuranceClaim.claimAmount"
-                :min="0"
-                :precision="2"
-                :step="100"
-              />
-            </el-form-item>
-            <el-form-item label="理赔状态">
-              <el-select v-model="accidentForm.insuranceClaim.status" placeholder="请选择状态">
-                <el-option label="待申请" value="待申请" />
-                <el-option label="已申请" value="已申请" />
-                <el-option label="已赔付" value="已赔付" />
-                <el-option label="已驳回" value="已驳回" />
-              </el-select>
-            </el-form-item>
-          </el-tab-pane>
+        <el-form-item label="事故地点" prop="location">
+          <el-input v-model="formData.location" placeholder="请输入事故地点" />
+        </el-form-item>
 
-          <el-tab-pane label="附件" name="attachments">
-            <el-upload
-              action="#"
-              list-type="picture-card"
-              :auto-upload="false"
-            >
-              <el-icon><Plus /></el-icon>
-            </el-upload>
-          </el-tab-pane>
-        </el-tabs>
+        <el-form-item label="事故等级" prop="level">
+          <el-select v-model="formData.level" placeholder="请选择事故等级" style="width: 100%">
+            <el-option label="轻微" value="minor" />
+            <el-option label="一般" value="normal" />
+            <el-option label="重大" value="major" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="处理状态" prop="status">
+          <el-select v-model="formData.status" placeholder="请选择处理状态" style="width: 100%">
+            <el-option label="待处理" value="pending" />
+            <el-option label="处理中" value="processing" />
+            <el-option label="已完成" value="completed" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="损失金额" prop="cost">
+          <el-input-number
+            v-model="formData.cost"
+            :min="0"
+            :precision="2"
+            :step="1000"
+            style="width: 100%"
+          />
+        </el-form-item>
+
+        <el-form-item label="责任认定" prop="responsibility">
+          <el-select v-model="formData.responsibility" placeholder="请选择责任认定" style="width: 100%">
+            <el-option
+              v-for="(label, value) in responsibilityMap"
+              :key="value"
+              :label="label"
+              :value="value"
+            />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="事故描述" prop="description">
+          <el-input
+            v-model="formData.description"
+            type="textarea"
+            rows="3"
+            placeholder="请输入事故详细描述"
+          />
+        </el-form-item>
+
+        <el-form-item label="处理过程" prop="process">
+          <el-input
+            v-model="formData.process"
+            type="textarea"
+            rows="3"
+            placeholder="请输入事故处理过程"
+          />
+        </el-form-item>
+
+        <el-form-item label="备注" prop="remarks">
+          <el-input
+            v-model="formData.remarks"
+            type="textarea"
+            rows="3"
+            placeholder="请输入备注信息"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
@@ -275,45 +239,46 @@
       </template>
     </el-dialog>
 
-    <!-- 详情对话框 -->
+    <!-- 查看详情对话框 -->
     <el-dialog
-      v-model="detailVisible"
       title="事故详情"
-      width="800px"
+      v-model="viewDialogVisible"
+      width="700px"
     >
       <el-descriptions :column="2" border>
-        <el-descriptions-item label="车牌号">
-          {{ getVehiclePlateNumber(selectedRecord?.vehicleId) }}
+        <el-descriptions-item label="车牌号">{{ currentRecord.vehicleNumber }}</el-descriptions-item>
+        <el-descriptions-item label="驾驶员">{{ currentRecord.driverName }}</el-descriptions-item>
+        <el-descriptions-item label="事故时间">{{ currentRecord.accidentTime }}</el-descriptions-item>
+        <el-descriptions-item label="事故地点">{{ currentRecord.location }}</el-descriptions-item>
+        <el-descriptions-item label="事故等级">
+          <el-tag :type="getLevelType(currentRecord.level)">
+            {{ levelMap[currentRecord.level as keyof typeof levelMap] }}
+          </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="驾驶员">
-          {{ getDriverName(selectedRecord?.driverId) }}
+        <el-descriptions-item label="处理状态">
+          <el-tag :type="getStatusType(currentRecord.status)">
+            {{ statusMap[currentRecord.status as keyof typeof statusMap] }}
+          </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="事故时间">
-          {{ selectedRecord?.accidentDate }}
+        <el-descriptions-item label="损失金额">¥{{ currentRecord.cost?.toFixed(2) }}</el-descriptions-item>
+        <el-descriptions-item label="责任认定">
+          {{ responsibilityMap[currentRecord.responsibility as keyof typeof responsibilityMap] }}
         </el-descriptions-item>
-        <el-descriptions-item label="事故地点">
-          {{ selectedRecord?.location }}
-        </el-descriptions-item>
-        <!-- 其他详情信息... -->
+        <el-descriptions-item label="事故描述" :span="2">{{ currentRecord.description || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="处理过程" :span="2">{{ currentRecord.process || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ currentRecord.remarks || '无' }}</el-descriptions-item>
       </el-descriptions>
-      
-      <el-divider>事故照片</el-divider>
-      <el-image-viewer
-        v-if="previewVisible"
-        :initial-index="previewIndex"
-        :url-list="selectedRecord?.attachments?.map((item: Attachment) => item.url) || []"
-        @close="previewVisible = false"
-      />
-      <div class="image-list">
+
+      <!-- 事故照片 -->
+      <div class="accident-photos" v-if="currentRecord.photos?.length">
+        <h4>事故照片</h4>
         <el-image
-          v-for="(image, index) in selectedRecord?.attachments"
+          v-for="(photo, index) in currentRecord.photos"
           :key="index"
-          :src="image.url"
-          :preview-src-list="selectedRecord?.attachments?.map((item: Attachment) => item.url)"
-          :initial-index="index"
+          :src="photo"
+          :preview-src-list="currentRecord.photos"
           fit="cover"
-          class="accident-image"
-          @click="handlePreviewImage(index)"
+          class="accident-photo"
         />
       </div>
     </el-dialog>
@@ -321,307 +286,433 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue';
-import accidentRecordData from '@/mock/accidentRecord';
-import vehicleData from '@/mock/vehicle';
-import driverData from '@/mock/driver';
+import type { FormInstance } from 'element-plus';
 
-// 接口定义
-interface Attachment {
-  url: string;
-  name: string;
-  type: string;
-}
+// 表格高度
+const tableHeight = ref('calc(100vh - 280px)');
 
-interface AccidentRecord {
-  vehicleId?: string;
-  driverId?: string;
-  accidentDate: string;
-  location: string;
-  attachments: Attachment[];
-}
+// 分页相关
+const currentPage = ref(1);
+const pageSize = ref(10);
 
-// 状态定义
-const records = ref(accidentRecordData.records);
-const vehicles = ref(vehicleData.vehicles);
-const drivers = ref(driverData.drivers);
+// 对话框控制
 const dialogVisible = ref(false);
-const detailVisible = ref(false);
+const viewDialogVisible = ref(false);
 const dialogType = ref<'add' | 'edit'>('add');
-const activeTab = ref('basic');
-const selectedRecord = ref<AccidentRecord | null>(null);
-const previewVisible = ref(false);
-const previewIndex = ref(0);
+const formRef = ref<FormInstance>();
+
+// 当前查看的记录
+const currentRecord = ref<any>({});
 
 // 搜索表单
-const searchForm = reactive({
-  vehicleId: '',
-  driverId: '',
-  type: '',
+const searchForm = ref({
+  vehicleNumber: '',
+  driverName: '',
+  level: '',
   status: '',
-  dateRange: [] as string[]
+  dateRange: []
 });
 
-// 事故记录表单
-const accidentForm = reactive({
+// 表单数据
+const formData = ref({
   id: '',
   vehicleId: '',
+  vehicleNumber: '',
   driverId: '',
-  accidentDate: '',
+  driverName: '',
+  accidentTime: '',
   location: '',
-  type: '',
-  severity: '',
-  description: '',
+  level: '',
+  status: 'pending',
+  cost: 0,
   responsibility: '',
-  thirdParty: {
-    name: '',
-    phone: '',
-    plateNumber: ''
-  },
-  cost: {
-    repair: 0,
-    compensation: 0,
-    other: 0
-  },
-  status: '',
-  handledBy: '',
-  insuranceClaim: {
-    claimNumber: '',
-    claimAmount: 0,
-    status: ''
-  },
-  attachments: [] as any[]
+  description: '',
+  process: '',
+  remarks: '',
+  photos: []
 });
 
-// 计算属性：过滤后的记录
+// 可用车辆列表
+const availableVehicles = ref([
+  { id: '1', plateNumber: '鲁H85697' },
+  { id: '2', plateNumber: '鲁H67M89' },
+  { id: '3', plateNumber: '鲁H2N680' },
+  { id: '4', plateNumber: '鲁H1U579' },
+  { id: '5', plateNumber: '鲁HK7K11' }
+]);
+
+// 可用驾驶员列表
+const availableDrivers = ref([
+  { id: '1', name: '张志强' },
+  { id: '2', name: '李建国' },
+  { id: '3', name: '王大明' },
+  { id: '4', name: '刘海洋' },
+  { id: '5', name: '赵国强' }
+]);
+
+// 生成示例数据
+const generateAccidentRecords = () => {
+  const records = [];
+  const locations = [
+    '济南市历下区经十路与解放路交叉口',
+    '济南市天桥区无影山路与北园路交叉口',
+    '济南市槐荫区经二路与纬二路交叉口',
+    '济南市市中区英雄山路与经四路交叉口',
+    '济南市历城区工业北路与花园路交叉口'
+  ];
+
+  // 事故照片示例
+  const photoSets = [
+    [
+      'https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fsafe.zj.gov.cn%2Fart%2F2022%2F4%2F13%2Fart_1229536674_4837160.jpg',
+      'https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fsafe.zj.gov.cn%2Fart%2F2022%2F4%2F13%2Fart_1229536674_4837161.jpg',
+      'https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fsafe.zj.gov.cn%2Fart%2F2022%2F4%2F13%2Fart_1229536674_4837162.jpg'
+    ],
+    [
+      'https://pics7.baidu.com/feed/63d0f703918fa0ec316c75e51e1976fb9e3f939d.jpeg',
+      'https://pics6.baidu.com/feed/63d0f703918fa0ec316c75e51e1976fb9e3f939e.jpeg'
+    ],
+    [
+      'https://pics5.baidu.com/feed/472309f790529822d1e98324cf0971cbb0717e3f.jpeg',
+      'https://pics4.baidu.com/feed/472309f790529822d1e98324cf0971cbb0717e40.jpeg',
+      'https://pics3.baidu.com/feed/472309f790529822d1e98324cf0971cbb0717e41.jpeg'
+    ],
+    [
+      'https://img0.baidu.com/it/u=1831379088,3147101487&fm=253&fmt=auto&app=120&f=JPEG',
+      'https://img1.baidu.com/it/u=1831379088,3147101487&fm=253&fmt=auto&app=120&f=JPEG'
+    ],
+    [
+      'https://img2.baidu.com/it/u=2619193114,3071890484&fm=253&fmt=auto&app=120&f=JPEG',
+      'https://img3.baidu.com/it/u=2619193114,3071890484&fm=253&fmt=auto&app=120&f=JPEG',
+      'https://img4.baidu.com/it/u=2619193114,3071890484&fm=253&fmt=auto&app=120&f=JPEG'
+    ]
+  ];
+  
+  for (let i = 0; i < 30; i++) {
+    const date = new Date();
+    date.setDate(date.getDate() - Math.floor(Math.random() * 180)); // 最近半年的记录
+    
+    records.push({
+      id: String(i + 1),
+      vehicleId: String(Math.floor(Math.random() * 5) + 1),
+      vehicleNumber: availableVehicles.value[Math.floor(Math.random() * 5)].plateNumber,
+      driverId: String(Math.floor(Math.random() * 5) + 1),
+      driverName: availableDrivers.value[Math.floor(Math.random() * 5)].name,
+      accidentTime: date.toISOString().slice(0, 16).replace('T', ' '),
+      location: locations[Math.floor(Math.random() * locations.length)],
+      level: ['minor', 'normal', 'major'][Math.floor(Math.random() * 3)],
+      status: ['pending', 'processing', 'completed'][Math.floor(Math.random() * 3)],
+      cost: Math.floor(Math.random() * 50000) + 1000,
+      responsibility: ['full', 'major', 'minor', 'none'][Math.floor(Math.random() * 4)],
+      description: '车辆在行驶过程中发生碰撞事故，造成车辆不同程度受损。需要进行维修和保险理赔。',
+      process: '已联系保险公司，正在进行定损评估。维修厂已完成初步检查，等待配件到货进行维修。',
+      remarks: '',
+      photos: photoSets[Math.floor(Math.random() * photoSets.length)]
+    });
+  }
+  return records;
+};
+
+// 事故记录数据
+const accidentRecords = ref(generateAccidentRecords());
+
+// 过滤后的记录
 const filteredRecords = computed(() => {
-  return records.value.filter((record: { 
-    vehicleId: string; 
-    driverId: string; 
-    type: string; 
-    status: string;
-    accidentDate: string;
-  }) => {
-    if (searchForm.vehicleId && record.vehicleId !== searchForm.vehicleId) return false;
-    if (searchForm.driverId && record.driverId !== searchForm.driverId) return false;
-    if (searchForm.type && record.type !== searchForm.type) return false;
-    if (searchForm.status && record.status !== searchForm.status) return false;
-    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
-      const recordDate = new Date(record.accidentDate);
-      const startDate = new Date(searchForm.dateRange[0]);
-      const endDate = new Date(searchForm.dateRange[1]);
-      if (recordDate < startDate || recordDate > endDate) return false;
+  return accidentRecords.value.filter(record => {
+    const matchVehicle = !searchForm.value.vehicleNumber || 
+      record.vehicleNumber.includes(searchForm.value.vehicleNumber);
+    const matchDriver = !searchForm.value.driverName || 
+      record.driverName.includes(searchForm.value.driverName);
+    const matchLevel = !searchForm.value.level || 
+      record.level === searchForm.value.level;
+    const matchStatus = !searchForm.value.status || 
+      record.status === searchForm.value.status;
+    
+    let matchDate = true;
+    if (searchForm.value.dateRange?.length === 2) {
+      const accidentDate = new Date(record.accidentTime).getTime();
+      const startDate = new Date(searchForm.value.dateRange[0]).getTime();
+      const endDate = new Date(searchForm.value.dateRange[1]).getTime() + 24 * 60 * 60 * 1000;
+      matchDate = accidentDate >= startDate && accidentDate <= endDate;
     }
-    return true;
+    
+    return matchVehicle && matchDriver && matchLevel && matchStatus && matchDate;
   });
 });
 
-// 获取车牌号
-const getVehiclePlateNumber = (id?: string | number) => {
-  const vehicle = vehicles.value.find((v: { id: string | number; plateNumber: string }) => v.id === id);
-  return vehicle ? vehicle.plateNumber : '-';
+// 分页后的记录
+const paginatedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredRecords.value.slice(start, end);
+});
+
+// 表单验证规则
+const rules = {
+  vehicleId: [{ required: true, message: '请选择车辆', trigger: ['blur', 'change'] }],
+  driverId: [{ required: true, message: '请选择驾驶员', trigger: ['blur', 'change'] }],
+  accidentTime: [{ required: true, message: '请选择事故时间', trigger: ['blur', 'change'] }],
+  location: [{ required: true, message: '请输入事故地点', trigger: 'blur' }],
+  level: [{ required: true, message: '请选择事故等级', trigger: ['blur', 'change'] }],
+  status: [{ required: true, message: '请选择处理状态', trigger: ['blur', 'change'] }],
+  cost: [{ required: true, message: '请输入损失金额', trigger: 'blur' }],
+  responsibility: [{ required: true, message: '请选择责任认定', trigger: ['blur', 'change'] }],
+  description: [{ required: true, message: '请输入事故描述', trigger: 'blur' }]
 };
 
-// 获取驾驶员姓名
-const getDriverName = (id?: string | number) => {
-  const driver = drivers.value.find((d: { id: string | number; name: string }) => d.id === id);
-  return driver ? driver.name : '-';
+// 处理车辆选择变化
+const handleVehicleChange = (vehicleId: string) => {
+  const vehicle = availableVehicles.value.find(v => v.id === vehicleId);
+  if (vehicle) {
+    formData.value.vehicleNumber = vehicle.plateNumber;
+  }
 };
 
-// 获取严重程度样式
-const getSeverityType = (severity: string) => {
-  const map: Record<string, string> = {
-    minor: 'info',
-    moderate: 'warning',
-    severe: 'danger'
-  };
-  return map[severity];
+// 处理驾驶员选择变化
+const handleDriverChange = (driverId: string) => {
+  const driver = availableDrivers.value.find(d => d.id === driverId);
+  if (driver) {
+    formData.value.driverName = driver.name;
+  }
 };
 
-// 获取严重程度文本
-const getSeverityText = (severity: string) => {
-  const map: Record<string, string> = {
-    minor: '轻微',
-    moderate: '中等',
-    severe: '严重'
-  };
-  return map[severity];
+// 处理每页显示数量变化
+const handleSizeChange = (val: number) => {
+  pageSize.value = val;
+  currentPage.value = 1;
 };
 
-// 获取责任类型样式
-const getResponsibilityType = (responsibility: string) => {
-  const map: Record<string, string> = {
-    '全责': 'danger',
-    '主责': 'warning',
-    '次责': 'info',
-    '无责': 'success'
-  };
-  return map[responsibility];
-};
-
-// 获取状态样式
-const getStatusType = (status: string) => {
-  const map: Record<string, string> = {
-    pending: 'warning',
-    processing: 'primary',
-    completed: 'success'
-  };
-  return map[status];
-};
-
-// 获取状态文本
-const getStatusText = (status: string) => {
-  const map: Record<string, string> = {
-    pending: '待处理',
-    processing: '处理中',
-    completed: '已完成'
-  };
-  return map[status];
-};
-
-// 获取理赔状态样式
-const getClaimStatusType = (status: string) => {
-  const map: Record<string, string> = {
-    '待申请': 'info',
-    '已申请': 'warning',
-    '已赔付': 'success',
-    '已驳回': 'danger'
-  };
-  return map[status];
-};
-
-// 计算总费用
-const getTotalCost = (record: any) => {
-  return record.cost.repair + record.cost.compensation + record.cost.other;
+// 处理页码变化
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val;
 };
 
 // 处理搜索
 const handleSearch = () => {
-  // 实际项目中这里会调用API
+  currentPage.value = 1;
 };
 
 // 重置搜索
 const resetSearch = () => {
-  Object.assign(searchForm, {
-    vehicleId: '',
-    driverId: '',
-    type: '',
+  searchForm.value = {
+    vehicleNumber: '',
+    driverName: '',
+    level: '',
     status: '',
     dateRange: []
-  });
+  };
+  currentPage.value = 1;
+};
+
+// 处理查看
+const handleView = (row: any) => {
+  currentRecord.value = row;
+  viewDialogVisible.value = true;
 };
 
 // 处理新增
 const handleAdd = () => {
   dialogType.value = 'add';
-  dialogVisible.value = true;
-  activeTab.value = 'basic';
-  Object.assign(accidentForm, {
+  formData.value = {
     id: '',
     vehicleId: '',
+    vehicleNumber: '',
     driverId: '',
-    accidentDate: '',
+    driverName: '',
+    accidentTime: '',
     location: '',
-    type: '',
-    severity: '',
-    description: '',
-    responsibility: '',
-    thirdParty: {
-      name: '',
-      phone: '',
-      plateNumber: ''
-    },
-    cost: {
-      repair: 0,
-      compensation: 0,
-      other: 0
-    },
+    level: '',
     status: 'pending',
-    handledBy: '',
-    insuranceClaim: {
-      claimNumber: '',
-      claimAmount: 0,
-      status: '待申请'
-    },
-    attachments: []
-  });
+    cost: 0,
+    responsibility: '',
+    description: '',
+    process: '',
+    remarks: '',
+    photos: []
+  };
+  dialogVisible.value = true;
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
 // 处理编辑
 const handleEdit = (row: any) => {
   dialogType.value = 'edit';
+  formData.value = { ...row };
   dialogVisible.value = true;
-  activeTab.value = 'basic';
-  Object.assign(accidentForm, JSON.parse(JSON.stringify(row)));
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
 // 处理删除
 const handleDelete = (row: any) => {
-  ElMessageBox.confirm('确定要删除该事故记录吗？', '提示', {
-    type: 'warning'
-  }).then(() => {
-    records.value = records.value.filter((item: { id: string | number }) => item.id !== row.id);
+  ElMessageBox.confirm(
+    `确定要删除该事故记录吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    accidentRecords.value = accidentRecords.value.filter(item => item.id !== row.id);
     ElMessage.success('删除成功');
+  }).catch(() => {
+    // 取消删除
   });
 };
 
-// 处理查看详情
-const handleViewDetail = (row: any) => {
-  selectedRecord.value = row;
-  detailVisible.value = true;
-};
-
-// 处理图片预览
-const handlePreviewImage = (index: number) => {
-  previewIndex.value = index;
-  previewVisible.value = true;
-};
-
 // 处理提交
-const handleSubmit = () => {
-  if (dialogType.value === 'add') {
-    const newRecord = {
-      ...accidentForm,
-      id: String(records.value.length + 1)
-    };
-    records.value.unshift(newRecord);
-    ElMessage.success('新增事故记录成功');
-  } else {
-    const index = records.value.findIndex((item: { id: string | number }) => item.id === accidentForm.id);
-    if (index !== -1) {
-      records.value[index] = { ...accidentForm };
-      ElMessage.success('更新事故记录成功');
+const handleSubmit = async () => {
+  if (!formRef.value) return;
+  
+  await formRef.value.validate((valid: boolean, fields: any) => {
+    if (valid) {
+      if (dialogType.value === 'add') {
+        // 新增记录
+        const newRecord = {
+          ...formData.value,
+          id: String(Date.now()),
+          photos: []
+        };
+        accidentRecords.value.unshift(newRecord);
+        ElMessage.success('新增成功');
+      } else {
+        // 更新记录
+        const index = accidentRecords.value.findIndex(item => item.id === formData.value.id);
+        if (index !== -1) {
+          accidentRecords.value[index] = { ...formData.value };
+          ElMessage.success('更新成功');
+        }
+      }
+      dialogVisible.value = false;
+    } else {
+      console.log('验证失败', fields);
     }
-  }
-  dialogVisible.value = false;
+  });
+};
+
+// 状态映射
+const statusMap = {
+  pending: '待处理',
+  processing: '处理中',
+  completed: '已完成'
+} as const;
+
+// 等级映射
+const levelMap = {
+  minor: '轻微',
+  normal: '一般',
+  major: '重大'
+} as const;
+
+// 责任认定映射
+const responsibilityMap = {
+  full: '全责',
+  major: '主责',
+  minor: '次责',
+  none: '无责'
+};
+
+// 获取状态标签类型
+const getStatusType = (status: string) => {
+  const typeMap: { [key: string]: string } = {
+    pending: 'warning',
+    processing: 'primary',
+    completed: 'success'
+  };
+  return typeMap[status] || 'info';
+};
+
+// 获取等级标签类型
+const getLevelType = (level: string) => {
+  const typeMap: { [key: string]: string } = {
+    minor: 'success',
+    normal: 'warning',
+    major: 'danger'
+  };
+  return typeMap[level] || 'info';
+};
+
+// 获取责任认定标签类型
+const getResponsibilityType = (responsibility: string) => {
+  const typeMap: { [key: string]: string } = {
+    full: 'danger',
+    major: 'warning',
+    minor: 'info',
+    none: 'success'
+  };
+  return typeMap[responsibility] || 'info';
 };
 </script>
 
 <style scoped>
+.accident-list {
+  height: 100%;
+  padding: 20px;
+  background-color: #f0f2f5;
+}
+
+.accident-card {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .search-form {
   margin-bottom: 20px;
 }
+
+.table-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+.pagination-container {
+  padding: 15px 0;
+  background-color: white;
+  display: flex;
+  justify-content: flex-end;
+}
+
+:deep(.el-card__body) {
+  height: calc(100% - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
-.image-list {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+
+.accident-photos {
+  margin-top: 20px;
+  border-top: 1px solid #eee;
+  padding-top: 20px;
 }
-.accident-image {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
+
+.accident-photo {
+  width: 120px;
+  height: 120px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
   cursor: pointer;
 }
-</style> 
+
+.accident-photo:hover {
+  opacity: 0.8;
+}
+</style>

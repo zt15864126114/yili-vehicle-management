@@ -69,7 +69,7 @@ import * as echarts from 'echarts';
 const statisticsCards = [
   {
     title: '车辆总数',
-    value: '28',
+    value: '40',
     tag: '正常运行',
     type: 'success',
     footer: '较上月 +2'

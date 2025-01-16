@@ -1,31 +1,22 @@
 <template>
   <div class="fuel-list">
-    <el-card>
+    <el-card class="fuel-card">
       <template #header>
         <div class="card-header">
-          <span>加油记录管理</span>
-          <el-button type="primary" @click="handleAdd">新增加油记录</el-button>
+          <span>加油记录</span>
+          <el-button type="primary" @click="handleAdd">新增记录</el-button>
         </div>
       </template>
 
       <!-- 搜索表单 -->
-      <el-form :inline="true" class="search-form">
-        <el-form-item label="车辆">
-          <el-select v-model="searchForm.vehicleId" placeholder="请选择车辆" clearable>
-            <el-option
-              v-for="vehicle in vehicles"
-              :key="vehicle.id"
-              :label="vehicle.plateNumber"
-              :value="vehicle.id"
-            />
-          </el-select>
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="车牌号">
+          <el-input v-model="searchForm.vehicleNumber" placeholder="请输入车牌号" />
         </el-form-item>
-        <el-form-item label="加油站">
-          <el-select v-model="searchForm.station" placeholder="请选择加油站" clearable>
-            <el-option label="中石化兖州站" value="中石化兖州站" />
-            <el-option label="中石油济宁站" value="中石油济宁站" />
-            <el-option label="壳牌加油站" value="壳牌加油站" />
-            <el-option label="益海嘉里自营站" value="益海嘉里自营站" />
+        <el-form-item label="加油类型">
+          <el-select v-model="searchForm.fuelType" placeholder="请选择类型" clearable>
+            <el-option label="汽油" value="gasoline" />
+            <el-option label="柴油" value="diesel" />
           </el-select>
         </el-form-item>
         <el-form-item label="加油日期">
@@ -35,154 +26,179 @@
             range-separator="至"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 统计卡片 -->
-      <div class="statistics-cards">
-        <el-card class="stat-card">
-          <template #header>本月加油总量</template>
-          <div class="stat-value">{{ monthlyStats.totalVolume.toFixed(2) }} L</div>
-        </el-card>
-        <el-card class="stat-card">
-          <template #header>本月加油总费用</template>
-          <div class="stat-value">¥{{ monthlyStats.totalCost.toFixed(2) }}</div>
-        </el-card>
-        <el-card class="stat-card">
-          <template #header>本月平均油耗</template>
-          <div class="stat-value">{{ monthlyStats.avgConsumption.toFixed(2) }} L/100km</div>
-        </el-card>
+      <!-- 表格内容区域 -->
+      <div class="table-container">
+        <el-table 
+          :data="paginatedRecords" 
+          style="width: 100%"
+          :height="tableHeight"
+        >
+          <el-table-column prop="vehicleNumber" label="车牌号" width="120" />
+          <el-table-column prop="fuelTime" label="加油时间" width="160" />
+          <el-table-column prop="fuelType" label="油品类型" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.fuelType === 'gasoline' ? 'success' : 'warning'">
+                {{ fuelTypeMap[row.fuelType as keyof typeof fuelTypeMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="volume" label="加油量" width="100">
+            <template #default="{ row }">
+              {{ row.volume }}L
+            </template>
+          </el-table-column>
+          <el-table-column prop="unitPrice" label="单价" width="100">
+            <template #default="{ row }">
+              ¥{{ row.unitPrice.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="cost" label="总金额" width="120">
+            <template #default="{ row }">
+              ¥{{ row.cost.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="currentMileage" label="当前里程" width="120">
+            <template #default="{ row }">
+              {{ row.currentMileage }}km
+            </template>
+          </el-table-column>
+          <el-table-column prop="location" label="加油站" min-width="180" />
+          <el-table-column prop="handler" label="经办人" width="100" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
-      <!-- 数据表格 -->
-      <el-table :data="filteredRecords" border>
-        <el-table-column prop="id" label="记录编号" width="100" />
-        <el-table-column label="车牌号" width="120">
-          <template #default="{ row }">
-            {{ getVehiclePlateNumber(row.vehicleId) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="驾驶员" width="100">
-          <template #default="{ row }">
-            {{ getDriverName(row.driverId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="fuelDate" label="加油时间" width="160" />
-        <el-table-column prop="fuelType" label="油品" width="100" />
-        <el-table-column prop="fuelVolume" label="加油量(L)" width="100" />
-        <el-table-column prop="unitPrice" label="单价" width="100">
-          <template #default="{ row }">
-            ¥{{ row.unitPrice.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="cost" label="总金额" width="100">
-          <template #default="{ row }">
-            ¥{{ row.cost.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="station" label="加油站" width="150" />
-        <el-table-column prop="currentMileage" label="当前里程" width="120">
-          <template #default="{ row }">
-            {{ row.currentMileage }}km
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button-group>
-              <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-            </el-button-group>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 分页区域 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 30]"
+          :total="filteredRecords.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
     <el-dialog
-      v-model="dialogVisible"
       :title="dialogType === 'add' ? '新增加油记录' : '编辑加油记录'"
-      width="600px"
+      v-model="dialogVisible"
+      width="500px"
     >
-      <el-form :model="fuelForm" label-width="100px">
-        <el-form-item label="车辆">
-          <el-select v-model="fuelForm.vehicleId" placeholder="请选择车辆">
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-width="100px"
+        style="max-height: 60vh; overflow-y: auto;"
+      >
+        <el-form-item label="车辆" prop="vehicleId">
+          <el-select
+            v-model="formData.vehicleId"
+            placeholder="请选择车辆"
+            style="width: 100%"
+            @change="handleVehicleChange"
+          >
             <el-option
-              v-for="vehicle in vehicles"
+              v-for="vehicle in availableVehicles"
               :key="vehicle.id"
               :label="vehicle.plateNumber"
               :value="vehicle.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="驾驶员">
-          <el-select v-model="fuelForm.driverId" placeholder="请选择驾驶员">
-            <el-option
-              v-for="driver in drivers"
-              :key="driver.id"
-              :label="driver.name"
-              :value="driver.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="加油时间">
+
+        <el-form-item label="加油时间" prop="fuelTime">
           <el-date-picker
-            v-model="fuelForm.fuelDate"
+            v-model="formData.fuelTime"
             type="datetime"
-            placeholder="选择时间"
+            placeholder="选择加油时间"
+            style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm"
           />
         </el-form-item>
-        <el-form-item label="油品">
-          <el-select v-model="fuelForm.fuelType" placeholder="请选择油品">
-            <el-option label="92#汽油" value="92#汽油" />
-            <el-option label="95#汽油" value="95#汽油" />
-            <el-option label="98#汽油" value="98#汽油" />
-            <el-option label="0#柴油" value="0#柴油" />
+
+        <el-form-item label="油品类型" prop="fuelType">
+          <el-select v-model="formData.fuelType" placeholder="请选择油品类型" style="width: 100%">
+            <el-option label="汽油" value="gasoline" />
+            <el-option label="柴油" value="diesel" />
           </el-select>
         </el-form-item>
-        <el-form-item label="加油量">
+
+        <el-form-item label="加油量" prop="volume">
           <el-input-number
-            v-model="fuelForm.fuelVolume"
-            :min="0"
+            v-model="formData.volume"
+            :min="1"
             :precision="2"
-            :step="5"
-          />
-        </el-form-item>
-        <el-form-item label="单价">
-          <el-input-number
-            v-model="fuelForm.unitPrice"
-            :min="0"
-            :precision="2"
-            :step="0.1"
+            :step="10"
+            style="width: 100%"
             @change="calculateCost"
           />
         </el-form-item>
-        <el-form-item label="总金额">
+
+        <el-form-item label="单价" prop="unitPrice">
           <el-input-number
-            v-model="fuelForm.cost"
+            v-model="formData.unitPrice"
+            :min="0"
+            :precision="2"
+            :step="0.1"
+            style="width: 100%"
+            @change="calculateCost"
+          />
+        </el-form-item>
+
+        <el-form-item label="总金额" prop="cost">
+          <el-input-number
+            v-model="formData.cost"
             :min="0"
             :precision="2"
             :step="10"
+            style="width: 100%"
             disabled
           />
         </el-form-item>
-        <el-form-item label="加油站">
-          <el-select v-model="fuelForm.station" placeholder="请选择加油站">
-            <el-option label="中石化兖州站" value="中石化兖州站" />
-            <el-option label="中石油济宁站" value="中石油济宁站" />
-            <el-option label="壳牌加油站" value="壳牌加油站" />
-            <el-option label="益海嘉里自营站" value="益海嘉里自营站" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="当前里程">
+
+        <el-form-item label="当前里程" prop="currentMileage">
           <el-input-number
-            v-model="fuelForm.currentMileage"
+            v-model="formData.currentMileage"
             :min="0"
             :step="100"
+            style="width: 100%"
+          />
+        </el-form-item>
+
+        <el-form-item label="加油站" prop="location">
+          <el-input v-model="formData.location" placeholder="请输入加油站名称" />
+        </el-form-item>
+
+        <el-form-item label="经办人" prop="handler">
+          <el-input v-model="formData.handler" placeholder="请输入经办人" />
+        </el-form-item>
+
+        <el-form-item label="备注" prop="remarks">
+          <el-input
+            v-model="formData.remarks"
+            type="textarea"
+            rows="3"
+            placeholder="请输入备注信息"
           />
         </el-form-item>
       </el-form>
@@ -197,191 +213,312 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import type { FuelRecord } from '@/types/record';
-import fuelRecordData from '@/mock/fuelRecord';
-import vehicleData from '@/mock/vehicle';
-import driverData from '@/mock/driver';
-
-const records = ref<FuelRecord[]>([]);
-const vehicles = ref(vehicleData.vehicles);
-const drivers = ref(driverData.drivers);
-const dialogVisible = ref(false);
-const dialogType = ref<'add' | 'edit'>('add');
 
 // 搜索表单
-const searchForm = reactive({
-  vehicleId: '',
-  station: '',
-  dateRange: [] as string[]
+const searchForm = ref({
+  vehicleNumber: '',
+  fuelType: '',
+  dateRange: []
 });
 
-// 加油表单
-const fuelForm = reactive({
-  id: '',
+// 油品类型映射
+const fuelTypeMap = {
+  gasoline: '汽油',
+  diesel: '柴油'
+} as const;
+
+// 生成示例数据
+const generateFuelRecords = () => {
+  const vehicles = [
+    '鲁H85697', '鲁H67M89', '鲁H2N680', '鲁H1U579',
+    '鲁HK7K11', '鲁H9M229', '鲁H3S338', '鲁H4K472'
+  ];
+  const locations = [
+    '中国石化兖州第一加油站',
+    '中国石油兖州西加油站',
+    '中国石化兖州南加油站',
+    '中国石油兖州北加油站',
+    '壳牌兖州加油站'
+  ];
+  const handlers = ['张明', '李强', '王华', '赵伟', '刘勇'];
+
+  return Array.from({ length: 50 }, (_, index) => {
+    const fuelType = Math.random() > 0.3 ? 'diesel' : 'gasoline';
+    const unitPrice = fuelType === 'diesel' ? 7.5 + Math.random() * 0.5 : 8.2 + Math.random() * 0.5;
+    const volume = Math.floor(Math.random() * 200) + 100;
+    
+    return {
+      id: String(index + 1),
+      vehicleId: String(Math.floor(Math.random() * 8) + 1),
+      vehicleNumber: vehicles[Math.floor(Math.random() * vehicles.length)],
+      fuelTime: getRandomRecentDate(1).replace('T', ' '),
+      fuelType,
+      volume,
+      unitPrice,
+      cost: +(volume * unitPrice).toFixed(2),
+      currentMileage: Math.floor(Math.random() * 50000) + 100000,
+      location: locations[Math.floor(Math.random() * locations.length)],
+      handler: handlers[Math.floor(Math.random() * handlers.length)],
+      remarks: ''
+    };
+  });
+};
+
+// 生成最近日期
+const getRandomRecentDate = (months = 1) => {
+  const today = new Date();
+  const pastDate = new Date(today.getTime() - months * 30 * 24 * 60 * 60 * 1000);
+  const randomTime = pastDate.getTime() + Math.random() * (today.getTime() - pastDate.getTime());
+  return new Date(randomTime).toISOString().slice(0, 16);
+};
+
+// 加油记录数据
+const fuelRecords = ref(generateFuelRecords());
+
+// 分页相关
+const currentPage = ref(1);
+const pageSize = ref(10);
+const tableHeight = 'calc(100vh - 330px)';
+
+// 过滤后的数据
+const filteredRecords = computed(() => {
+  return fuelRecords.value.filter(record => {
+    const matchVehicle = !searchForm.value.vehicleNumber || 
+      record.vehicleNumber.includes(searchForm.value.vehicleNumber);
+    const matchType = !searchForm.value.fuelType || 
+      record.fuelType === searchForm.value.fuelType;
+    
+    let matchDate = true;
+    if (searchForm.value.dateRange?.length === 2) {
+      const recordDate = record.fuelTime.split(' ')[0];
+      matchDate = recordDate >= (searchForm.value.dateRange[0] as string) && 
+                 recordDate <= (searchForm.value.dateRange[1] as string);
+    }
+    
+    return matchVehicle && matchType && matchDate;
+  }).sort((a, b) => new Date(b.fuelTime).getTime() - new Date(a.fuelTime).getTime());
+});
+
+// 分页后的数据
+const paginatedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredRecords.value.slice(start, end);
+});
+
+// 对话框相关
+const dialogVisible = ref(false);
+const dialogType = ref<'add' | 'edit'>('add');
+const formRef = ref();
+
+// 可用车辆列表
+const availableVehicles = ref([
+  { id: '1', plateNumber: '鲁H85697' },
+  { id: '2', plateNumber: '鲁H67M89' },
+  { id: '3', plateNumber: '鲁H2N680' },
+  { id: '4', plateNumber: '鲁H1U579' },
+  { id: '5', plateNumber: '鲁HK7K11' },
+  { id: '6', plateNumber: '鲁H9M229' },
+  { id: '7', plateNumber: '鲁H3S338' },
+  { id: '8', plateNumber: '鲁H4K472' }
+]);
+
+// 表单数据
+const formData = ref({
   vehicleId: '',
-  driverId: '',
-  fuelDate: '',
+  vehicleNumber: '',
+  fuelTime: '',
   fuelType: '',
-  fuelVolume: 0,
+  volume: 0,
   unitPrice: 0,
   cost: 0,
-  station: '',
-  currentMileage: 0
+  currentMileage: 0,
+  location: '',
+  handler: '',
+  remarks: ''
 });
+
+// 表单验证规则
+const rules = {
+  vehicleId: [{ required: true, message: '请选择车辆', trigger: ['blur', 'change'] }],
+  fuelTime: [{ required: true, message: '请选择加油时间', trigger: ['blur', 'change'] }],
+  fuelType: [{ required: true, message: '请选择油品类型', trigger: ['blur', 'change'] }],
+  volume: [{ required: true, message: '请输入加油量', trigger: 'blur' }],
+  unitPrice: [{ required: true, message: '请输入单价', trigger: 'blur' }],
+  currentMileage: [{ required: true, message: '请输入当前里程', trigger: 'blur' }],
+  location: [{ required: true, message: '请输入加油站', trigger: 'blur' }],
+  handler: [{ required: true, message: '请输入经办人', trigger: 'blur' }]
+};
+
+// 处理车辆选择变化
+const handleVehicleChange = (vehicleId: string) => {
+  const vehicle = availableVehicles.value.find(v => v.id === vehicleId);
+  if (vehicle) {
+    formData.value.vehicleNumber = vehicle.plateNumber;
+  }
+};
 
 // 计算总金额
 const calculateCost = () => {
-  fuelForm.cost = Number((fuelForm.fuelVolume * fuelForm.unitPrice).toFixed(2));
+  if (formData.value.volume && formData.value.unitPrice) {
+    formData.value.cost = +(formData.value.volume * formData.value.unitPrice).toFixed(2);
+  }
 };
 
-// 监听加油量变化，自动计算总金额
-watch(() => fuelForm.fuelVolume, calculateCost);
-
-// 月度统计数据
-const monthlyStats = computed(() => {
-  const now = new Date();
-  const thisMonth = records.value.filter(record => {
-    const recordDate = new Date(record.fuelDate);
-    return recordDate.getMonth() === now.getMonth() &&
-           recordDate.getFullYear() === now.getFullYear();
-  });
-
-  const totalVolume = thisMonth.reduce((sum, record) => sum + record.fuelVolume, 0);
-  const totalCost = thisMonth.reduce((sum, record) => sum + record.cost, 0);
-  const avgConsumption = totalVolume / (thisMonth.length || 1);
-
-  return {
-    totalVolume,
-    totalCost,
-    avgConsumption
-  };
-});
-
-// 根据搜索条件过滤记录
-const filteredRecords = computed(() => {
-  return records.value.filter(record => {
-    const matchVehicle = !searchForm.vehicleId || record.vehicleId === searchForm.vehicleId;
-    const matchStation = !searchForm.station || record.station === searchForm.station;
-    let matchDate = true;
-    if (searchForm.dateRange?.length === 2) {
-      const recordDate = new Date(record.fuelDate);
-      const startDate = new Date(searchForm.dateRange[0]);
-      const endDate = new Date(searchForm.dateRange[1]);
-      matchDate = recordDate >= startDate && recordDate <= endDate;
-    }
-    return matchVehicle && matchStation && matchDate;
-  });
-});
-
-// 获取车牌号
-const getVehiclePlateNumber = (id: string) => {
-  const vehicle = vehicles.value.find((v: { id: string }) => v.id === id);
-  return vehicle ? vehicle.plateNumber : '-';
+// 处理每页显示数量变化
+const handleSizeChange = (val: number) => {
+  pageSize.value = val;
+  currentPage.value = 1;
 };
 
-// 获取驾驶员姓名
-const getDriverName = (id: string) => {
-  const driver = drivers.value.find((d: { id: string }) => d.id === id);
-  return driver ? driver.name : '-';
+// 处理页码变化
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val;
 };
 
 // 处理搜索
 const handleSearch = () => {
-  // 实际项目中这里会调用API
+  currentPage.value = 1;
 };
 
 // 重置搜索
 const resetSearch = () => {
-  Object.assign(searchForm, {
-    vehicleId: '',
-    station: '',
+  searchForm.value = {
+    vehicleNumber: '',
+    fuelType: '',
     dateRange: []
-  });
+  };
+  currentPage.value = 1;
 };
 
 // 处理新增
 const handleAdd = () => {
   dialogType.value = 'add';
-  dialogVisible.value = true;
-  Object.assign(fuelForm, {
-    id: '',
+  formData.value = {
     vehicleId: '',
-    driverId: '',
-    fuelDate: '',
+    vehicleNumber: '',
+    fuelTime: '',
     fuelType: '',
-    fuelVolume: 0,
+    volume: 0,
     unitPrice: 0,
     cost: 0,
-    station: '',
-    currentMileage: 0
-  });
+    currentMileage: 0,
+    location: '',
+    handler: '',
+    remarks: ''
+  };
+  dialogVisible.value = true;
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
+// 添加 currentId
+const currentId = ref('');
+
 // 处理编辑
-const handleEdit = (row: FuelRecord) => {
+const handleEdit = (row: any) => {
+  currentId.value = row.id;  // 保存当前编辑记录的 id
   dialogType.value = 'edit';
+  formData.value = { ...row };
   dialogVisible.value = true;
-  Object.assign(fuelForm, row);
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
 // 处理删除
-const handleDelete = (row: FuelRecord) => {
-  ElMessageBox.confirm('确定要删除该加油记录吗？', '提示', {
-    type: 'warning'
-  }).then(() => {
-    records.value = records.value.filter(item => item.id !== row.id);
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm(
+    `确定要删除该加油记录吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    fuelRecords.value = fuelRecords.value.filter(item => item.id !== row.id);
     ElMessage.success('删除成功');
   });
 };
 
 // 处理提交
-const handleSubmit = () => {
-  if (dialogType.value === 'add') {
-    const newRecord = {
-      ...fuelForm,
-      id: String(records.value.length + 1)
-    };
-    records.value.unshift(newRecord);
-    ElMessage.success('新增加油记录成功');
-  } else {
-    const index = records.value.findIndex(item => item.id === fuelForm.id);
-    if (index !== -1) {
-      records.value[index] = { ...fuelForm };
-      ElMessage.success('更新加油记录成功');
+const handleSubmit = async () => {
+  if (!formRef.value) return;
+  
+  await formRef.value.validate((valid: boolean, fields: any) => {
+    if (valid) {
+      if (dialogType.value === 'add') {
+        // 新增记录
+        const newRecord = {
+          id: String(Date.now()),
+          ...formData.value
+        };
+        fuelRecords.value.unshift(newRecord);
+        ElMessage.success('新增成功');
+      } else {
+        // 更新记录
+        const index = fuelRecords.value.findIndex(item => item.id === currentId.value);
+        if (index !== -1) {
+          fuelRecords.value[index] = {
+            ...fuelRecords.value[index],  // 保留原有的 id
+            ...formData.value
+          };
+          ElMessage.success('更新成功');
+        }
+      }
+      dialogVisible.value = false;
+    } else {
+      console.log('验证失败', fields);
     }
-  }
-  dialogVisible.value = false;
+  });
 };
-
-// 初始化数据
-records.value = fuelRecordData.records;
 </script>
 
 <style scoped>
+.fuel-list {
+  height: 100%;
+  padding: 20px;
+  background-color: #f0f2f5;
+}
+
+.fuel-card {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .search-form {
   margin-bottom: 20px;
 }
-.statistics-cards {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-.stat-card {
+
+.table-container {
   flex: 1;
+  overflow: hidden;
 }
-.stat-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: #409EFF;
-  text-align: center;
+
+.pagination-container {
+  padding: 15px 0;
+  background-color: white;
+  display: flex;
+  justify-content: flex-end;
 }
+
+:deep(.el-card__body) {
+  height: calc(100% - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;

@@ -5,7 +5,7 @@ const systemConfigData = Mock.mock({
     'company': {
       'name': '益海嘉里（兖州）粮油工业有限公司',
       'address': '山东省济宁市兖州区新兖镇新驿大道',
-      'contact': '0537-1234567',
+      'contact': '0537-6621825',
       'logo': '@image("200x200")'
     },
     'system': {

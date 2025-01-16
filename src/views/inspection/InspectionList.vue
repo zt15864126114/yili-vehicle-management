@@ -1,181 +1,174 @@
 <template>
   <div class="inspection-list">
-    <el-card>
+    <el-card class="inspection-card">
       <template #header>
         <div class="card-header">
-          <span>年检记录管理</span>
-          <el-button type="primary" @click="handleAdd">新增年检记录</el-button>
+          <span>年检记录</span>
+          <el-button type="primary" @click="handleAdd">新增记录</el-button>
         </div>
       </template>
 
-      <!-- 提醒卡片 -->
-      <el-alert
-        v-if="upcomingInspections.length > 0"
-        type="warning"
-        :closable="false"
-        class="alert-box"
-      >
-        <template #title>
-          <div class="alert-title">
-            有 {{ upcomingInspections.length }} 辆车即将到期年检
-            <el-button type="primary" link @click="showUpcomingDialog = true">
-              查看详情
-            </el-button>
-          </div>
-        </template>
-      </el-alert>
-
       <!-- 搜索表单 -->
-      <el-form :inline="true" class="search-form">
-        <el-form-item label="车辆">
-          <el-select v-model="searchForm.vehicleId" placeholder="请选择车辆" clearable>
-            <el-option
-              v-for="vehicle in vehicles"
-              :key="vehicle.id"
-              :label="vehicle.plateNumber"
-              :value="vehicle.id"
-            />
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="车牌号">
+          <el-input v-model="searchForm.vehicleNumber" placeholder="请输入车牌号" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+            <el-option label="待年检" value="pending" />
+            <el-option label="已年检" value="completed" />
+            <el-option label="未通过" value="failed" />
           </el-select>
         </el-form-item>
-        <el-form-item label="检测站">
-          <el-select v-model="searchForm.station" placeholder="请选择检测站" clearable>
-            <el-option label="兖州车管所" value="兖州车管所" />
-            <el-option label="济宁市车管所" value="济宁市车管所" />
-            <el-option label="邹城检测站" value="邹城检测站" />
-            <el-option label="曲阜检测站" value="曲阜检测站" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="检测结果">
-          <el-select v-model="searchForm.result" placeholder="请选择结果" clearable>
-            <el-option label="通过" value="pass" />
-            <el-option label="未通过" value="fail" />
-            <el-option label="待检" value="pending" />
-          </el-select>
+        <el-form-item label="年检日期">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 数据表格 -->
-      <el-table :data="filteredRecords" border>
-        <el-table-column prop="id" label="记录编号" width="100" />
-        <el-table-column label="车牌号" width="120">
-          <template #default="{ row }">
-            {{ getVehiclePlateNumber(row.vehicleId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="inspectionDate" label="检测日期" width="120" />
-        <el-table-column prop="nextInspectionDate" label="下次年检日期" width="120" />
-        <el-table-column prop="station" label="检测站" width="150" />
-        <el-table-column prop="inspector" label="检测员" width="100" />
-        <el-table-column prop="items" label="检测项目">
-          <template #default="{ row }">
-            <el-tag
-              v-for="item in row.items"
-              :key="item"
-              size="small"
-              class="mx-1"
-            >
-              {{ item }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="cost" label="检测费用" width="100">
-          <template #default="{ row }">
-            ¥{{ row.cost.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="result" label="检测结果" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getResultType(row.result)">
-              {{ getResultText(row.result) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row: record }">
-            <el-button type="primary" link @click="handleView(record)">查看</el-button>
-            <el-button type="primary" link @click="handleEdit(record)">编辑</el-button>
-            <el-button type="danger" link @click="handleDelete(record)">删除</el-button>
-            <el-button type="info" link @click="handleViewReport(record)">查看报告</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 表格内容区域 -->
+      <div class="table-container">
+        <el-table 
+          :data="paginatedRecords" 
+          style="width: 100%"
+          :height="tableHeight"
+        >
+          <el-table-column prop="vehicleNumber" label="车牌号" width="120" />
+          <el-table-column prop="inspectionDate" label="年检日期" width="120" />
+          <el-table-column prop="nextInspectionDate" label="下次年检日期" width="120" />
+          <el-table-column prop="location" label="年检地点" min-width="180" />
+          <el-table-column prop="cost" label="年检费用" width="120">
+            <template #default="{ row }">
+              ¥{{ row.cost.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)">
+                {{ statusMap[row.status as keyof typeof statusMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="handler" label="经办人" width="100" />
+          <el-table-column prop="remarks" label="备注" min-width="150" show-overflow-tooltip />
+          <el-table-column label="操作" width="180" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="handleView(row)">查看</el-button>
+              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 分页区域 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 30]"
+          :total="filteredRecords.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
     <el-dialog
-      v-model="dialogVisible"
       :title="dialogType === 'add' ? '新增年检记录' : '编辑年检记录'"
-      width="600px"
+      v-model="dialogVisible"
+      width="500px"
     >
-      <el-form :model="inspectionForm" label-width="100px">
-        <el-form-item label="车辆">
-          <el-select v-model="inspectionForm.vehicleId" placeholder="请选择车辆">
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-width="100px"
+        style="max-height: 60vh; overflow-y: auto;"
+      >
+        <el-form-item label="车辆" prop="vehicleId">
+          <el-select
+            v-model="formData.vehicleId"
+            placeholder="请选择车辆"
+            style="width: 100%"
+            @change="handleVehicleChange"
+          >
             <el-option
-              v-for="vehicle in vehicles"
+              v-for="vehicle in availableVehicles"
               :key="vehicle.id"
               :label="vehicle.plateNumber"
               :value="vehicle.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="检测日期">
+
+        <el-form-item label="年检日期" prop="inspectionDate">
           <el-date-picker
-            v-model="inspectionForm.inspectionDate"
+            v-model="formData.inspectionDate"
             type="date"
-            placeholder="选择日期"
+            placeholder="选择年检日期"
+            style="width: 100%"
+            value-format="YYYY-MM-DD"
+            @change="updateNextInspectionDate"
           />
         </el-form-item>
-        <el-form-item label="下次年检日期">
+
+        <el-form-item label="下次年检" prop="nextInspectionDate">
           <el-date-picker
-            v-model="inspectionForm.nextInspectionDate"
+            v-model="formData.nextInspectionDate"
             type="date"
-            placeholder="选择日期"
+            placeholder="选择下次年检日期"
+            style="width: 100%"
+            value-format="YYYY-MM-DD"
+            :disabled="true"
           />
         </el-form-item>
-        <el-form-item label="检测站">
-          <el-select v-model="inspectionForm.station" placeholder="请选择检测站">
-            <el-option label="兖州车管所" value="兖州车管所" />
-            <el-option label="济宁市车管所" value="济宁市车管所" />
-            <el-option label="邹城检测站" value="邹城检测站" />
-            <el-option label="曲阜检测站" value="曲阜检测站" />
-          </el-select>
+
+        <el-form-item label="年检地点" prop="location">
+          <el-input v-model="formData.location" placeholder="请输入年检地点" />
         </el-form-item>
-        <el-form-item label="检测项目">
-          <el-checkbox-group v-model="inspectionForm.items">
-            <el-checkbox label="尾气检测" />
-            <el-checkbox label="制动性能" />
-            <el-checkbox label="灯光检测" />
-            <el-checkbox label="车辆外观" />
-            <el-checkbox label="安全装置" />
-          </el-checkbox-group>
-        </el-form-item>
-        <el-form-item label="检测费用">
+
+        <el-form-item label="年检费用" prop="cost">
           <el-input-number
-            v-model="inspectionForm.cost"
+            v-model="formData.cost"
             :min="0"
             :precision="2"
             :step="100"
+            style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="检测员">
-          <el-input v-model="inspectionForm.inspector" />
-        </el-form-item>
-        <el-form-item label="检测结果">
-          <el-select v-model="inspectionForm.result" placeholder="请选择结果">
-            <el-option label="通过" value="pass" />
-            <el-option label="未通过" value="fail" />
-            <el-option label="待检" value="pending" />
+
+        <el-form-item label="状态" prop="status">
+          <el-select v-model="formData.status" placeholder="请选择状态" style="width: 100%">
+            <el-option label="待年检" value="pending" />
+            <el-option label="已年检" value="completed" />
+            <el-option label="未通过" value="failed" />
           </el-select>
         </el-form-item>
-        <el-form-item label="备注">
+
+        <el-form-item label="经办人" prop="handler">
+          <el-input v-model="formData.handler" placeholder="请输入经办人" />
+        </el-form-item>
+
+        <el-form-item label="备注" prop="remarks">
           <el-input
-            v-model="inspectionForm.remarks"
+            v-model="formData.remarks"
             type="textarea"
-            :rows="3"
+            rows="3"
+            placeholder="请输入备注信息"
           />
         </el-form-item>
       </el-form>
@@ -187,234 +180,408 @@
       </template>
     </el-dialog>
 
-    <!-- 即将到期年检提醒对话框 -->
+    <!-- 查看详情对话框 -->
     <el-dialog
-      v-model="showUpcomingDialog"
-      title="即将到期年检车辆"
-      width="800px"
+      title="年检详情"
+      v-model="viewDialogVisible"
+      width="600px"
     >
-      <el-table :data="upcomingInspections" border>
-        <el-table-column label="车牌号">
-          <template #default="{ row }">
-            {{ getVehiclePlateNumber(row.vehicleId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="nextInspectionDate" label="年检到期日" />
-        <el-table-column label="剩余天数">
-          <template #default="{ row }">
-            {{ getDaysUntilInspection(row.nextInspectionDate) }}天
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200">
-          <template #default="{ row }">
-            <el-button type="primary" @click="handleAddInspection(row)">
-              创建年检记录
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="车牌号">{{ currentRecord.vehicleNumber }}</el-descriptions-item>
+        <el-descriptions-item label="年检日期">{{ currentRecord.inspectionDate }}</el-descriptions-item>
+        <el-descriptions-item label="下次年检日期">{{ currentRecord.nextInspectionDate }}</el-descriptions-item>
+        <el-descriptions-item label="年检费用">¥{{ currentRecord.cost?.toFixed(2) }}</el-descriptions-item>
+        <el-descriptions-item label="年检地点" :span="2">{{ currentRecord.location }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(currentRecord.status)">
+            {{ statusMap[currentRecord.status as keyof typeof statusMap] }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="经办人">{{ currentRecord.handler }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ currentRecord.remarks || '无' }}</el-descriptions-item>
+        <el-descriptions-item label="检测项目" :span="2">
+          <el-tag
+            v-for="(item, index) in currentRecord.inspectionItems"
+            :key="index"
+            :type="item.passed ? 'success' : 'danger'"
+            style="margin-right: 5px; margin-bottom: 5px;"
+          >
+            {{ item.name }}: {{ item.passed ? '通过' : '未通过' }}
+          </el-tag>
+        </el-descriptions-item>
+      </el-descriptions>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import inspectionRecordData from '@/mock/inspectionRecord';
-import vehicleData from '@/mock/vehicle';
-
-const records = ref(inspectionRecordData.records);
-const vehicles = ref(vehicleData.vehicles);
-const dialogVisible = ref(false);
-const dialogType = ref<'add' | 'edit'>('add');
-const showUpcomingDialog = ref(false);
 
 // 搜索表单
-const searchForm = reactive({
-  vehicleId: '',
-  station: '',
-  result: ''
+const searchForm = ref({
+  vehicleNumber: '',
+  status: '',
+  dateRange: []
 });
 
-// 年检表单
-const inspectionForm = reactive({
+// 状态映射
+const statusMap = {
+  pending: '待年检',
+  completed: '已年检',
+  failed: '未通过'
+} as const;
+
+// 获取状态标签类型
+const getStatusType = (status: string) => {
+  const typeMap: { [key: string]: string } = {
+    pending: 'warning',
+    completed: 'success',
+    failed: 'danger'
+  };
+  return typeMap[status] || 'info';
+};
+
+// 生成示例数据
+const generateInspectionRecords = () => {
+  const vehicles = [
+    '鲁H85697', '鲁H67M89', '鲁H2N680', '鲁H1U579',
+    '鲁HK7K11', '鲁H9M229', '鲁H3S338', '鲁H4K472'
+  ];
+  const locations = [
+    '济宁市机动车检测中心',
+    '兖州区机动车检测站',
+    '济宁高新区机动车检测中心',
+    '济宁市交通局检测中心'
+  ];
+  const handlers = [
+    '张志强', '李建国', '王大明', '刘海洋', '赵国强'
+  ];
+
+  return Array.from({ length: 30 }, (_, index) => {
+    const inspectionDate = getRandomRecentDate(12);
+    const nextInspectionDate = new Date(new Date(inspectionDate).setFullYear(new Date(inspectionDate).getFullYear() + 1)).toISOString().split('T')[0];
+    
+    return {
+      id: String(index + 1),
+      vehicleId: String(Math.floor(Math.random() * 8) + 1),
+      vehicleNumber: vehicles[Math.floor(Math.random() * vehicles.length)],
+      inspectionDate,
+      nextInspectionDate,
+      location: locations[Math.floor(Math.random() * locations.length)],
+      cost: Math.floor(Math.random() * 500) + 500,
+      status: ['pending', 'completed', 'completed', 'completed', 'failed'][Math.floor(Math.random() * 5)],
+      handler: handlers[Math.floor(Math.random() * handlers.length)],
+      remarks: '',
+      inspectionItems: [
+        { name: '外观检查', passed: Math.random() > 0.1 },
+        { name: '底盘检查', passed: Math.random() > 0.1 },
+        { name: '尾气检测', passed: Math.random() > 0.1 },
+        { name: '制动性能', passed: Math.random() > 0.1 },
+        { name: '灯光检测', passed: Math.random() > 0.1 },
+        { name: '安全装置', passed: Math.random() > 0.1 }
+      ]
+    };
+  });
+};
+
+// 生成最近日期
+const getRandomRecentDate = (months = 12) => {
+  const today = new Date();
+  const pastDate = new Date(today.getTime() - months * 30 * 24 * 60 * 60 * 1000);
+  const randomTime = pastDate.getTime() + Math.random() * (today.getTime() - pastDate.getTime());
+  return new Date(randomTime).toISOString().split('T')[0];
+};
+
+// 年检记录数据
+const inspectionRecords = ref(generateInspectionRecords());
+
+// 分页相关
+const currentPage = ref(1);
+const pageSize = ref(10);
+const tableHeight = 'calc(100vh - 330px)';
+
+// 过滤后的数据
+const filteredRecords = computed(() => {
+  return inspectionRecords.value.filter(record => {
+    const matchVehicle = !searchForm.value.vehicleNumber || 
+      record.vehicleNumber.includes(searchForm.value.vehicleNumber);
+    const matchStatus = !searchForm.value.status || 
+      record.status === searchForm.value.status;
+    
+    let matchDate = true;
+    if (searchForm.value.dateRange?.length === 2) {
+      const recordDate = record.inspectionDate;
+      matchDate = recordDate >= (searchForm.value.dateRange[0] as string) && 
+                 recordDate <= (searchForm.value.dateRange[1] as string);
+    }
+    
+    return matchVehicle && matchStatus && matchDate;
+  }).sort((a, b) => new Date(b.inspectionDate).getTime() - new Date(a.inspectionDate).getTime());
+});
+
+// 分页后的数据
+const paginatedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredRecords.value.slice(start, end);
+});
+
+// 对话框相关
+const dialogVisible = ref(false);
+const viewDialogVisible = ref(false);
+const dialogType = ref<'add' | 'edit'>('add');
+const formRef = ref();
+
+// 添加类型定义
+interface InspectionRecord {
+  id: string;
+  vehicleNumber: string;
+  inspectionDate: string;
+  nextInspectionDate: string;
+  location: string;
+  cost: number;
+  status: string;
+  handler: string;
+  remarks: string;
+  inspectionItems: Array<{ name: string; passed: boolean }>;
+}
+
+// 修改 currentRecord 的初始值
+const currentRecord = ref<InspectionRecord>({
   id: '',
-  vehicleId: '',
+  vehicleNumber: '',
   inspectionDate: '',
   nextInspectionDate: '',
-  station: '',
-  items: [] as string[],
+  location: '',
   cost: 0,
-  inspector: '',
-  result: '',
-  remarks: ''
+  status: '',
+  handler: '',
+  remarks: '',
+  inspectionItems: []
 });
 
-// 获取即将到期的年检记录
-const upcomingInspections = computed(() => {
-  const thirtyDaysFromNow = new Date();
-  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-  
-  return records.value.filter((record: { nextInspectionDate: string }) => {
-    const nextInspectionDate = new Date(record.nextInspectionDate);
-    return nextInspectionDate <= thirtyDaysFromNow && nextInspectionDate >= new Date();
-  });
+// 可用车辆列表
+const availableVehicles = ref([
+  { id: '1', plateNumber: '鲁H85697' },
+  { id: '2', plateNumber: '鲁H67M89' },
+  { id: '3', plateNumber: '鲁H2N680' },
+  { id: '4', plateNumber: '鲁H1U579' },
+  { id: '5', plateNumber: '鲁HK7K11' },
+  { id: '6', plateNumber: '鲁H9M229' },
+  { id: '7', plateNumber: '鲁H3S338' },
+  { id: '8', plateNumber: '鲁H4K472' }
+]);
+
+// 表单数据
+const formData = ref({
+  vehicleId: '',
+  vehicleNumber: '',
+  inspectionDate: '',
+  nextInspectionDate: '',
+  location: '',
+  cost: 0,
+  status: '',
+  handler: '',
+  remarks: '',
+  inspectionItems: []
 });
 
-// 根据搜索条件过滤记录
-const filteredRecords = computed(() => {
-  return records.value.filter((record: { vehicleId: string; station: string; result: string }) => {
-    const matchVehicle = !searchForm.vehicleId || record.vehicleId === searchForm.vehicleId;
-    const matchStation = !searchForm.station || record.station === searchForm.station;
-    const matchResult = !searchForm.result || record.result === searchForm.result;
-    return matchVehicle && matchStation && matchResult;
-  });
-});
-
-// 获取车牌号
-const getVehiclePlateNumber = (id: string) => {
-  const vehicle = vehicles.value.find((v: { id: string }) => v.id === id);
-  return vehicle ? vehicle.plateNumber : '-';
+// 表单验证规则
+const rules = {
+  vehicleId: [{ required: true, message: '请选择车辆', trigger: ['blur', 'change'] }],
+  inspectionDate: [{ required: true, message: '请选择年检日期', trigger: ['blur', 'change'] }],
+  location: [{ required: true, message: '请输入年检地点', trigger: 'blur' }],
+  cost: [{ required: true, message: '请输入年检费用', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择状态', trigger: ['blur', 'change'] }],
+  handler: [{ required: true, message: '请输入经办人', trigger: 'blur' }]
 };
 
-// 获取状态样式
-const getResultType = (result: string) => {
-  const map: Record<string, string> = {
-    pass: 'success',
-    fail: 'danger',
-    pending: 'warning'
-  };
-  return map[result];
+// 处理车辆选择变化
+const handleVehicleChange = (vehicleId: string) => {
+  const vehicle = availableVehicles.value.find(v => v.id === vehicleId);
+  if (vehicle) {
+    formData.value.vehicleNumber = vehicle.plateNumber;
+  }
 };
 
-// 获取状态文本
-const getResultText = (result: string) => {
-  const map: Record<string, string> = {
-    pass: '通过',
-    fail: '未通过',
-    pending: '待检'
-  };
-  return map[result];
+// 更新下次年检日期
+const updateNextInspectionDate = () => {
+  if (formData.value.inspectionDate) {
+    const nextDate = new Date(formData.value.inspectionDate);
+    nextDate.setFullYear(nextDate.getFullYear() + 1);
+    formData.value.nextInspectionDate = nextDate.toISOString().split('T')[0];
+  }
 };
 
-// 计算距离年检天数
-const getDaysUntilInspection = (date: string) => {
-  const nextDate = new Date(date);
-  const today = new Date();
-  const diffTime = nextDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+// 处理每页显示数量变化
+const handleSizeChange = (val: number) => {
+  pageSize.value = val;
+  currentPage.value = 1;
+};
+
+// 处理页码变化
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val;
 };
 
 // 处理搜索
 const handleSearch = () => {
-  // 实际项目中这里会调用API
+  currentPage.value = 1;
 };
 
 // 重置搜索
 const resetSearch = () => {
-  Object.assign(searchForm, {
-    vehicleId: '',
-    station: '',
-    result: ''
-  });
+  searchForm.value = {
+    vehicleNumber: '',
+    status: '',
+    dateRange: []
+  };
+  currentPage.value = 1;
+};
+
+// 处理查看
+const handleView = (row: any) => {
+  currentRecord.value = row;
+  viewDialogVisible.value = true;
 };
 
 // 处理新增
 const handleAdd = () => {
   dialogType.value = 'add';
-  dialogVisible.value = true;
-  Object.assign(inspectionForm, {
-    id: '',
+  formData.value = {
     vehicleId: '',
+    vehicleNumber: '',
     inspectionDate: '',
     nextInspectionDate: '',
-    station: '',
-    items: [],
+    location: '',
     cost: 0,
-    inspector: '',
-    result: '',
-    remarks: ''
-  });
+    status: 'pending',
+    handler: '',
+    remarks: '',
+    inspectionItems: []
+  };
+  dialogVisible.value = true;
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
-// 处理编辑
+// 添加 currentId
+const currentId = ref('');
+
+// 修改 handleEdit 函数
 const handleEdit = (row: any) => {
+  currentId.value = row.id;  // 保存当前编辑记录的 id
   dialogType.value = 'edit';
+  formData.value = { ...row };
   dialogVisible.value = true;
-  Object.assign(inspectionForm, row);
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
 // 处理删除
 const handleDelete = (row: any) => {
-  ElMessageBox.confirm('确定要删除该年检记录吗？', '提示', {
-    type: 'warning'
-  }).then(() => {
-    records.value = records.value.filter((item: { id: string }) => item.id !== row.id);
+  ElMessageBox.confirm(
+    `确定要删除该年检记录吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    inspectionRecords.value = inspectionRecords.value.filter(item => item.id !== row.id);
     ElMessage.success('删除成功');
   });
 };
 
-// 查看报告
-const handleViewReport = (record: any) => {
-  console.log('查看年检报告:', record);
-  ElMessage.info('年检报告功能开发中...');
-};
-
-// 从提醒创建年检记录
-const handleAddInspection = (row: any) => {
-  handleAdd();
-  inspectionForm.vehicleId = row.vehicleId;
-};
-
 // 处理提交
-const handleSubmit = () => {
-  if (dialogType.value === 'add') {
-    const newRecord = {
-      ...inspectionForm,
-      id: String(records.value.length + 1)
-    };
-    records.value.unshift(newRecord);
-    ElMessage.success('新增年检记录成功');
-  } else {
-    const index = records.value.findIndex((item: { id: string }) => item.id === inspectionForm.id);
-    if (index !== -1) {
-      records.value[index] = { ...inspectionForm };
-      ElMessage.success('更新年检记录成功');
+const handleSubmit = async () => {
+  if (!formRef.value) return;
+  
+  await formRef.value.validate((valid: boolean, fields: any) => {
+    if (valid) {
+      if (dialogType.value === 'add') {
+        // 新增记录
+        const newRecord = {
+          id: String(Date.now()),  // 使用时间戳作为 id
+          ...formData.value,
+          inspectionItems: [
+            { name: '外观检查', passed: true },
+            { name: '底盘检查', passed: true },
+            { name: '尾气检测', passed: true },
+            { name: '制动性能', passed: true },
+            { name: '灯光检测', passed: true },
+            { name: '安全装置', passed: true }
+          ]
+        };
+        inspectionRecords.value.unshift(newRecord);
+        ElMessage.success('新增成功');
+      } else {
+        // 更新记录
+        const index = inspectionRecords.value.findIndex(item => item.id === currentId.value);
+        if (index !== -1) {
+          inspectionRecords.value[index] = {
+            ...inspectionRecords.value[index],  // 保留原有的 id
+            ...formData.value
+          };
+          ElMessage.success('更新成功');
+        }
+      }
+      dialogVisible.value = false;
+    } else {
+      console.log('验证失败', fields);
     }
-  }
-  dialogVisible.value = false;
-};
-
-// 修改函数定义，删除未使用的 row 参数
-const handleView = (record: any) => {
-  // 实现查看功能
-  console.log('查看记录:', record);
+  });
 };
 </script>
 
 <style scoped>
+.inspection-list {
+  height: 100%;
+  padding: 20px;
+  background-color: #f0f2f5;
+}
+
+.inspection-card {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .search-form {
   margin-bottom: 20px;
 }
-.alert-box {
-  margin-bottom: 20px;
+
+.table-container {
+  flex: 1;
+  overflow: hidden;
 }
-.alert-title {
+
+.pagination-container {
+  padding: 15px 0;
+  background-color: white;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: flex-end;
 }
+
+:deep(.el-card__body) {
+  height: calc(100% - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-}
-.mx-1 {
-  margin: 0 4px;
 }
 </style> 

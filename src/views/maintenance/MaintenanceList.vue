@@ -1,32 +1,30 @@
 <template>
   <div class="maintenance-list">
-    <el-card>
+    <el-card class="maintenance-card">
       <template #header>
         <div class="card-header">
-          <span>维修保养记录管理</span>
-          <el-button type="primary" @click="handleAdd">新增维修记录</el-button>
+          <span>维修记录</span>
+          <el-button type="primary" @click="handleAdd">新增记录</el-button>
         </div>
       </template>
 
       <!-- 搜索表单 -->
-      <el-form :inline="true" class="search-form">
-        <el-form-item label="车辆">
-          <el-select v-model="searchForm.vehicleId" placeholder="请选择车辆" clearable>
-            <el-option
-              v-for="vehicle in vehicles"
-              :key="vehicle.id"
-              :label="vehicle.plateNumber"
-              :value="vehicle.id"
-            />
-          </el-select>
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="车牌号">
+          <el-input v-model="searchForm.vehicleNumber" placeholder="请输入车牌号" />
         </el-form-item>
         <el-form-item label="维修类型">
           <el-select v-model="searchForm.maintenanceType" placeholder="请选择类型" clearable>
-            <el-option label="定期保养" value="定期保养" />
-            <el-option label="故障维修" value="故障维修" />
-            <el-option label="轮胎更换" value="轮胎更换" />
-            <el-option label="油液更换" value="油液更换" />
-            <el-option label="制动系统维修" value="制动系统维修" />
+            <el-option label="定期保养" value="regular" />
+            <el-option label="故障维修" value="repair" />
+            <el-option label="紧急维修" value="emergency" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+            <el-option label="进行中" value="ongoing" />
+            <el-option label="已完成" value="completed" />
+            <el-option label="待处理" value="pending" />
           </el-select>
         </el-form-item>
         <el-form-item label="维修日期">
@@ -36,106 +34,190 @@
             range-separator="至"
             start-placeholder="开始日期"
             end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button type="primary" @click="handleSearch">搜索</el-button>
           <el-button @click="resetSearch">重置</el-button>
         </el-form-item>
       </el-form>
 
-      <!-- 数据表格 -->
-      <el-table :data="filteredRecords" border>
-        <el-table-column prop="id" label="记录编号" width="100" />
-        <el-table-column label="车牌号" width="120">
-          <template #default="{ row }">
-            {{ getVehiclePlateNumber(row.vehicleId) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="maintenanceType" label="维修类型" width="120" />
-        <el-table-column prop="maintenanceDate" label="维修日期" width="120" />
-        <el-table-column prop="cost" label="维修费用" width="120">
-          <template #default="{ row }">
-            ¥{{ row.cost.toFixed(2) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="garage" label="维修厂" width="150" />
-        <el-table-column prop="description" label="维修内容" show-overflow-tooltip />
-        <el-table-column prop="nextMaintenanceDate" label="下次保养日期" width="120" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button-group>
-              <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-              <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-            </el-button-group>
-          </template>
-        </el-table-column>
-      </el-table>
+      <!-- 表格内容区域 -->
+      <div class="table-container">
+        <el-table 
+          :data="paginatedRecords" 
+          style="width: 100%"
+          :height="tableHeight"
+        >
+          <el-table-column prop="vehicleNumber" label="车牌号" width="120" />
+          <el-table-column prop="maintenanceType" label="维修类型" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getTypeTag(row.maintenanceType)">
+                {{ maintenanceTypeMap[row.maintenanceType as keyof typeof maintenanceTypeMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="startTime" label="开始时间" width="160" />
+          <el-table-column prop="endTime" label="结束时间" width="160" />
+          <el-table-column prop="location" label="维修地点" width="150" />
+          <el-table-column prop="cost" label="维修费用" width="120">
+            <template #default="{ row }">
+              ¥{{ row.cost.toFixed(2) }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="items" label="维修项目" min-width="200">
+            <template #default="{ row }">
+              <el-tag
+                v-for="(item, index) in row.items"
+                :key="index"
+                size="small"
+                style="margin-right: 5px; margin-bottom: 5px;"
+              >
+                {{ item }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.status)">
+                {{ statusMap[row.status as keyof typeof statusMap] }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="handler" label="经办人" width="100" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
+              <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 分页区域 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[10, 15, 20, 30]"
+          :total="filteredRecords.length"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          background
+        />
+      </div>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
     <el-dialog
-      v-model="dialogVisible"
       :title="dialogType === 'add' ? '新增维修记录' : '编辑维修记录'"
+      v-model="dialogVisible"
       width="600px"
     >
-      <el-form :model="maintenanceForm" label-width="100px">
-        <el-form-item label="车辆">
-          <el-select v-model="maintenanceForm.vehicleId" placeholder="请选择车辆">
+      <el-form
+        ref="formRef"
+        :model="formData"
+        :rules="rules"
+        label-width="100px"
+        style="max-height: 60vh; overflow-y: auto;"
+      >
+        <el-form-item label="车辆" prop="vehicleId">
+          <el-select
+            v-model="formData.vehicleId"
+            placeholder="请选择车辆"
+            style="width: 100%"
+            @change="handleVehicleChange"
+          >
             <el-option
-              v-for="vehicle in vehicles"
+              v-for="vehicle in availableVehicles"
               :key="vehicle.id"
               :label="vehicle.plateNumber"
               :value="vehicle.id"
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="维修类型">
-          <el-select v-model="maintenanceForm.maintenanceType" placeholder="请选择类型">
-            <el-option label="定期保养" value="定期保养" />
-            <el-option label="故障维修" value="故障维修" />
-            <el-option label="轮胎更换" value="轮胎更换" />
-            <el-option label="油液更换" value="油液更换" />
-            <el-option label="制动系统维修" value="制动系统维修" />
+
+        <el-form-item label="维修类型" prop="maintenanceType">
+          <el-select v-model="formData.maintenanceType" placeholder="请选择维修类型" style="width: 100%">
+            <el-option label="定期保养" value="regular" />
+            <el-option label="故障维修" value="repair" />
+            <el-option label="紧急维修" value="emergency" />
           </el-select>
         </el-form-item>
-        <el-form-item label="维修日期">
+
+        <el-form-item label="开始时间" prop="startTime">
           <el-date-picker
-            v-model="maintenanceForm.maintenanceDate"
-            type="date"
-            placeholder="选择日期"
+            v-model="formData.startTime"
+            type="datetime"
+            placeholder="选择开始时间"
+            style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm"
           />
         </el-form-item>
-        <el-form-item label="维修费用">
+
+        <el-form-item label="结束时间" prop="endTime">
+          <el-date-picker
+            v-model="formData.endTime"
+            type="datetime"
+            placeholder="选择结束时间"
+            style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm"
+          />
+        </el-form-item>
+
+        <el-form-item label="维修地点" prop="location">
+          <el-input v-model="formData.location" placeholder="请输入维修地点" />
+        </el-form-item>
+
+        <el-form-item label="维修费用" prop="cost">
           <el-input-number
-            v-model="maintenanceForm.cost"
+            v-model="formData.cost"
             :min="0"
             :precision="2"
             :step="100"
+            style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="维修厂">
-          <el-input v-model="maintenanceForm.garage" />
+
+        <el-form-item label="维修项目" prop="items">
+          <el-select
+            v-model="formData.items"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="请选择或输入维修项目"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in commonMaintenanceItems"
+              :key="item"
+              :label="item"
+              :value="item"
+            />
+          </el-select>
         </el-form-item>
-        <el-form-item label="维修内容">
+
+        <el-form-item label="状态" prop="status">
+          <el-select v-model="formData.status" placeholder="请选择状态" style="width: 100%">
+            <el-option label="进行中" value="ongoing" />
+            <el-option label="已完成" value="completed" />
+            <el-option label="待处理" value="pending" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="经办人" prop="handler">
+          <el-input v-model="formData.handler" placeholder="请输入经办人" />
+        </el-form-item>
+
+        <el-form-item label="备注" prop="remarks">
           <el-input
-            v-model="maintenanceForm.description"
+            v-model="formData.remarks"
             type="textarea"
-            :rows="3"
-          />
-        </el-form-item>
-        <el-form-item label="下次保养日期">
-          <el-date-picker
-            v-model="maintenanceForm.nextMaintenanceDate"
-            type="date"
-            placeholder="选择日期"
+            rows="3"
+            placeholder="请输入备注信息"
           />
         </el-form-item>
       </el-form>
@@ -150,159 +232,358 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import type { MaintenanceRecord } from '@/types/record';
-import maintenanceRecordData from '@/mock/maintenanceRecord';
-import vehicleData from '@/mock/vehicle';
-
-const records = ref<MaintenanceRecord[]>([]);
-const vehicles = ref(vehicleData.vehicles);
-const dialogVisible = ref(false);
-const dialogType = ref<'add' | 'edit'>('add');
 
 // 搜索表单
-const searchForm = reactive({
-  vehicleId: '',
+const searchForm = ref({
+  vehicleNumber: '',
   maintenanceType: '',
-  dateRange: [] as string[]
+  status: '',
+  dateRange: []
 });
 
-// 维修表单
-const maintenanceForm = reactive({
-  id: '',
-  vehicleId: '',
-  maintenanceType: '',
-  maintenanceDate: '',
-  cost: 0,
-  garage: '',
-  description: '',
-  nextMaintenanceDate: '',
-  status: 'pending'
-});
+// 状态映射
+const statusMap = {
+  ongoing: '进行中',
+  completed: '已完成',
+  pending: '待处理'
+} as const;
 
-// 根据搜索条件过滤记录
-const filteredRecords = computed(() => {
-  return records.value.filter(record => {
-    const matchVehicle = !searchForm.vehicleId || record.vehicleId === searchForm.vehicleId;
-    const matchType = !searchForm.maintenanceType || record.maintenanceType === searchForm.maintenanceType;
-    let matchDate = true;
-    if (searchForm.dateRange?.length === 2) {
-      const recordDate = new Date(record.maintenanceDate);
-      const startDate = new Date(searchForm.dateRange[0]);
-      const endDate = new Date(searchForm.dateRange[1]);
-      matchDate = recordDate >= startDate && recordDate <= endDate;
-    }
-    return matchVehicle && matchType && matchDate;
-  });
-});
+// 维修类型映射
+const maintenanceTypeMap = {
+  regular: '定期保养',
+  repair: '故障维修',
+  emergency: '紧急维修'
+} as const;
 
-// 获取车牌号
-const getVehiclePlateNumber = (id: string) => {
-  const vehicle = vehicles.value.find((v: { id: string }) => v.id === id);
-  return vehicle ? vehicle.plateNumber : '-';
-};
-
-// 获取状态样式
+// 获取状态标签类型
 const getStatusType = (status: string) => {
-  const map: Record<string, string> = {
-    pending: 'info',
-    processing: 'warning',
-    completed: 'success'
+  const typeMap: { [key: string]: string } = {
+    ongoing: 'primary',
+    completed: 'success',
+    pending: 'warning'
   };
-  return map[status];
+  return typeMap[status] || 'info';
 };
 
-// 获取状态文本
-const getStatusText = (status: string) => {
-  const map: Record<string, string> = {
-    pending: '待处理',
-    processing: '维修中',
-    completed: '已完成'
+// 获取维修类型标签
+const getTypeTag = (type: string) => {
+  const typeMap: { [key: string]: string } = {
+    regular: 'info',
+    repair: 'warning',
+    emergency: 'danger'
   };
-  return map[status];
+  return typeMap[type] || 'info';
+};
+
+// 常见维修项目
+const commonMaintenanceItems = [
+  '机油更换',
+  '机油滤清器更换',
+  '空气滤清器更换',
+  '刹车片更换',
+  '轮胎更换',
+  '电瓶维护',
+  '变速箱油更换',
+  '冷却液更换',
+  '发动机维修',
+  '底盘维护',
+  '车灯维修',
+  '空调维修'
+];
+
+// 生成示例数据
+const generateMaintenanceRecords = () => {
+  const vehicles = [
+    '鲁H85697', '鲁H67M89', '鲁H2N680', '鲁H1U579',
+    '鲁HK7K11', '鲁H9M229', '鲁H3S338', '鲁H4K472'
+  ];
+  const locations = [
+    '公司维修车间',
+    '济宁市汽车维修中心',
+    '解放4S店济宁店',
+    '东风4S店济宁店',
+    '重汽4S店济宁店'
+  ];
+  const handlers = ['张师傅', '李师傅', '王师傅', '刘师傅', '赵师傅'];
+
+  return Array.from({ length: 50 }, (_, index) => {
+    const startTime = getRandomRecentDate(6);
+    const endTime = new Date(new Date(startTime).getTime() + Math.random() * 72 * 60 * 60 * 1000).toISOString().slice(0, 16).replace('T', ' ');
+    const maintenanceItems = commonMaintenanceItems
+      .sort(() => Math.random() - 0.5)
+      .slice(0, Math.floor(Math.random() * 3) + 1);
+    
+    return {
+      id: String(index + 1),
+      vehicleId: String(Math.floor(Math.random() * 8) + 1),
+      vehicleNumber: vehicles[Math.floor(Math.random() * vehicles.length)],
+      maintenanceType: ['regular', 'repair', 'emergency'][Math.floor(Math.random() * 3)],
+      startTime: startTime.replace('T', ' '),
+      endTime: endTime,
+      location: locations[Math.floor(Math.random() * locations.length)],
+      cost: Math.floor(Math.random() * 5000) + 500,
+      items: maintenanceItems,
+      status: ['ongoing', 'completed', 'completed', 'completed', 'pending'][Math.floor(Math.random() * 5)],
+      handler: handlers[Math.floor(Math.random() * handlers.length)],
+      remarks: ''
+    };
+  });
+};
+
+// 生成最近日期
+const getRandomRecentDate = (months = 6) => {
+  const today = new Date();
+  const pastDate = new Date(today.getTime() - months * 30 * 24 * 60 * 60 * 1000);
+  const randomTime = pastDate.getTime() + Math.random() * (today.getTime() - pastDate.getTime());
+  return new Date(randomTime).toISOString().slice(0, 16);
+};
+
+// 维修记录数据
+const maintenanceRecords = ref(generateMaintenanceRecords());
+
+// 分页相关
+const currentPage = ref(1);
+const pageSize = ref(10);
+const tableHeight = 'calc(100vh - 330px)';
+
+// 过滤后的数据
+const filteredRecords = computed(() => {
+  return maintenanceRecords.value.filter(record => {
+    const matchVehicle = !searchForm.value.vehicleNumber || 
+      record.vehicleNumber.includes(searchForm.value.vehicleNumber);
+    const matchType = !searchForm.value.maintenanceType || 
+      record.maintenanceType === searchForm.value.maintenanceType;
+    const matchStatus = !searchForm.value.status || 
+      record.status === searchForm.value.status;
+    
+    let matchDate = true;
+    if (searchForm.value.dateRange?.length === 2) {
+      const recordDate = record.startTime.split(' ')[0];
+      matchDate = recordDate >= (searchForm.value.dateRange[0] as string) && 
+                 recordDate <= (searchForm.value.dateRange[1] as string);
+    }
+    
+    return matchVehicle && matchType && matchStatus && matchDate;
+  }).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+});
+
+// 分页后的数据
+const paginatedRecords = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  return filteredRecords.value.slice(start, end);
+});
+
+// 对话框相关
+const dialogVisible = ref(false);
+const dialogType = ref<'add' | 'edit'>('add');
+const formRef = ref();
+
+// 可用车辆列表
+const availableVehicles = ref([
+  { id: '1', plateNumber: '鲁H85697' },
+  { id: '2', plateNumber: '鲁H67M89' },
+  { id: '3', plateNumber: '鲁H2N680' },
+  { id: '4', plateNumber: '鲁H1U579' },
+  { id: '5', plateNumber: '鲁HK7K11' },
+  { id: '6', plateNumber: '鲁H9M229' },
+  { id: '7', plateNumber: '鲁H3S338' },
+  { id: '8', plateNumber: '鲁H4K472' }
+]);
+
+// 表单数据
+const formData = ref({
+  vehicleId: '',
+  vehicleNumber: '',
+  maintenanceType: '',
+  startTime: '',
+  endTime: '',
+  location: '',
+  cost: 0,
+  items: [],
+  status: '',
+  handler: '',
+  remarks: ''
+});
+
+// 表单验证规则
+const rules = {
+  vehicleId: [{ required: true, message: '请选择车辆', trigger: ['blur', 'change'] }],
+  maintenanceType: [{ required: true, message: '请选择维修类型', trigger: ['blur', 'change'] }],
+  startTime: [{ required: true, message: '请选择开始时间', trigger: ['blur', 'change'] }],
+  location: [{ required: true, message: '请输入维修地点', trigger: 'blur' }],
+  cost: [{ required: true, message: '请输入维修费用', trigger: 'blur' }],
+  items: [{ required: true, message: '请选择维修项目', trigger: ['blur', 'change'] }],
+  status: [{ required: true, message: '请选择状态', trigger: ['blur', 'change'] }],
+  handler: [{ required: true, message: '请输入经办人', trigger: 'blur' }]
+};
+
+// 处理车辆选择变化
+const handleVehicleChange = (vehicleId: string) => {
+  const vehicle = availableVehicles.value.find(v => v.id === vehicleId);
+  if (vehicle) {
+    formData.value.vehicleNumber = vehicle.plateNumber;
+  }
+};
+
+// 处理每页显示数量变化
+const handleSizeChange = (val: number) => {
+  pageSize.value = val;
+  currentPage.value = 1;
+};
+
+// 处理页码变化
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val;
 };
 
 // 处理搜索
 const handleSearch = () => {
-  // 实际项目中这里会调用API
+  currentPage.value = 1;
 };
 
 // 重置搜索
 const resetSearch = () => {
-  Object.assign(searchForm, {
-    vehicleId: '',
+  searchForm.value = {
+    vehicleNumber: '',
     maintenanceType: '',
+    status: '',
     dateRange: []
-  });
+  };
+  currentPage.value = 1;
 };
 
 // 处理新增
 const handleAdd = () => {
   dialogType.value = 'add';
-  dialogVisible.value = true;
-  Object.assign(maintenanceForm, {
-    id: '',
+  formData.value = {
     vehicleId: '',
+    vehicleNumber: '',
     maintenanceType: '',
-    maintenanceDate: '',
+    startTime: '',
+    endTime: '',
+    location: '',
     cost: 0,
-    garage: '',
-    description: '',
-    nextMaintenanceDate: '',
-    status: 'pending'
-  });
+    items: [],
+    status: 'pending',
+    handler: '',
+    remarks: ''
+  };
+  dialogVisible.value = true;
+  // 重置表单验证
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
+// 添加 currentId
+const currentId = ref('');
+
 // 处理编辑
-const handleEdit = (row: MaintenanceRecord) => {
+const handleEdit = (row: any) => {
+  currentId.value = row.id;  // 保存当前编辑记录的 id
   dialogType.value = 'edit';
+  formData.value = { ...row };
   dialogVisible.value = true;
-  Object.assign(maintenanceForm, row);
+  // 重置表单验证
+  if (formRef.value) {
+    formRef.value.clearValidate();
+  }
 };
 
 // 处理删除
-const handleDelete = (row: MaintenanceRecord) => {
-  ElMessageBox.confirm('确定要删除该维修记录吗？', '提示', {
-    type: 'warning'
-  }).then(() => {
-    records.value = records.value.filter(item => item.id !== row.id);
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm(
+    `确定要删除该维修记录吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    maintenanceRecords.value = maintenanceRecords.value.filter(item => item.id !== row.id);
     ElMessage.success('删除成功');
   });
 };
 
 // 处理提交
-const handleSubmit = () => {
-  if (dialogType.value === 'add') {
-    const newRecord = {
-      ...maintenanceForm,
-      id: String(records.value.length + 1)
-    };
-    records.value.unshift(newRecord);
-    ElMessage.success('新增维修记录成功');
-  } else {
-    const index = records.value.findIndex(item => item.id === maintenanceForm.id);
-    if (index !== -1) {
-      records.value[index] = { ...maintenanceForm };
-      ElMessage.success('更新维修记录成功');
+const handleSubmit = async () => {
+  if (!formRef.value) return;
+  
+  await formRef.value.validate((valid: boolean, fields: any) => {
+    if (valid) {
+      if (dialogType.value === 'add') {
+        // 新增记录
+        const newRecord = {
+          id: String(Date.now()),
+          ...formData.value,
+          status: 'pending'
+        };
+        maintenanceRecords.value.unshift(newRecord);
+        ElMessage.success('新增成功');
+      } else {
+        // 更新记录
+        const index = maintenanceRecords.value.findIndex(item => item.id === currentId.value);
+        if (index !== -1) {
+          maintenanceRecords.value[index] = {
+            ...maintenanceRecords.value[index],  // 保留原有的 id
+            ...formData.value
+          };
+          ElMessage.success('更新成功');
+        }
+      }
+      dialogVisible.value = false;
+    } else {
+      console.log('验证失败', fields);
     }
-  }
-  dialogVisible.value = false;
+  });
 };
-
-// 初始化数据
-records.value = maintenanceRecordData.records;
 </script>
 
 <style scoped>
+.maintenance-list {
+  height: 100%;
+  padding: 20px;
+  background-color: #f0f2f5;
+}
+
+.maintenance-card {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
+
 .search-form {
   margin-bottom: 20px;
 }
+
+.table-container {
+  flex: 1;
+  overflow: hidden;
+}
+
+.pagination-container {
+  padding: 15px 0;
+  background-color: white;
+  display: flex;
+  justify-content: flex-end;
+}
+
+:deep(.el-card__body) {
+  height: calc(100% - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
 .dialog-footer {
   display: flex;
   justify-content: flex-end;

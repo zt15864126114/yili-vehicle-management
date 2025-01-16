@@ -21,17 +21,17 @@
             <el-form-item label="联系电话">
               <el-input v-model="settings.company.contact" />
             </el-form-item>
-            <el-form-item label="公司Logo">
-              <el-upload
-                class="avatar-uploader"
-                action="#"
-                :show-file-list="false"
-                :auto-upload="false"
-              >
-                <img v-if="settings.company.logo" :src="settings.company.logo" class="avatar">
-                <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-              </el-upload>
-            </el-form-item>
+<!--            <el-form-item label="公司Logo">-->
+<!--              <el-upload-->
+<!--                class="avatar-uploader"-->
+<!--                action="#"-->
+<!--                :show-file-list="false"-->
+<!--                :auto-upload="false"-->
+<!--              >-->
+<!--                <img v-if="settings.company.logo" :src="settings.company.logo" class="avatar">-->
+<!--                <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>-->
+<!--              </el-upload>-->
+<!--            </el-form-item>-->
           </el-form>
         </el-tab-pane>
 
